@@ -1,0 +1,1548 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>A FAIR Asset Viewer</title>
+<meta name="description" content="Katalog 3D interaktif Nusantara Kit dari A FAIR Studio: aset game-ready dengan LOD, collision, dan material PBR.">
+<style>
+  :root{
+    --bg1:#3b1f60; --bg2:#170c27;
+    --panel:rgba(43,22,72,.84); --card:rgba(255,255,255,.06); --line:rgba(255,255,255,.1);
+    --text:#f3eefb; --muted:#b4a6cc; --accent:#fbb01c; --ink:#1d1030;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;overflow:hidden;font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--text);
+    background:radial-gradient(ellipse 80% 70% at 50% 38%,var(--bg1),var(--bg2));}
+  canvas{display:block;position:fixed;inset:0;touch-action:none}
+  .panel{position:fixed;background:var(--panel);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid var(--line);border-radius:14px;padding:14px}
+  h1{font-size:15px;margin:0;letter-spacing:.02em}
+  h2{font-size:11px;margin:0 0 8px;color:var(--accent);text-transform:uppercase;letter-spacing:.1em;font-weight:700}
+
+  /* left: brand + catalog */
+  #side{top:16px;left:16px;bottom:16px;width:262px;display:flex;flex-direction:column;padding:12px}
+  #brand{display:flex;gap:10px;align-items:center;padding:2px 2px 12px;border-bottom:1px solid var(--line)}
+  #brand svg{width:36px;height:36px;flex:none}
+  #brand small{display:block;color:var(--muted);font-size:11px;margin-top:2px}
+  #chips{display:flex;flex-wrap:wrap;gap:5px;padding:10px 0}
+  #chips button{border:1px solid var(--line);background:none;color:var(--muted);border-radius:20px;padding:4px 9px;font:inherit;font-size:11px;cursor:pointer}
+  #chips button.on{background:var(--accent);border-color:var(--accent);color:var(--ink);font-weight:700}
+  #list{flex:1;overflow:auto;margin:0 -4px;padding:0 4px}
+  #list h2{margin:10px 0 4px} #list h2:first-child{margin-top:2px}
+  #list button{display:flex;width:100%;text-align:left;gap:10px;align-items:center;background:none;border:1px solid transparent;color:var(--text);padding:5px 7px;border-radius:9px;cursor:pointer;font:inherit;font-size:13px}
+  #list button:hover{background:var(--card)}
+  #list button.on{background:rgba(251,176,28,.14);border-color:rgba(251,176,28,.55)}
+  #list button span.c{display:block;font-size:10.5px;color:var(--muted)}
+  #list .ico{width:26px;height:26px;flex:none;border-radius:50%;background:var(--accent);display:grid;place-items:center;font-size:13px}
+
+  /* right: controls + stats */
+  #controls{top:16px;right:16px;width:250px}
+  .seg{display:flex;background:rgba(0,0,0,.25);border-radius:9px;padding:3px;gap:3px;margin-bottom:12px}
+  .seg button{flex:1;background:none;border:0;color:var(--muted);padding:6px 4px;border-radius:7px;cursor:pointer;font:inherit;font-size:12px}
+  .seg button.on{background:var(--accent);color:var(--ink);font-weight:700}
+  .swatches{display:flex;gap:8px;margin-bottom:10px}
+  .swatches button{flex:1;border:2px solid transparent;border-radius:9px;padding:0;cursor:pointer;background:none;color:var(--muted);font:inherit;font-size:10.5px}
+  .swatches button .sw{height:22px;border-radius:7px;margin-bottom:3px}
+  .swatches button.on{border-color:var(--accent);color:var(--text)}
+  .toggle{display:flex;justify-content:space-between;align-items:center;font-size:13px;padding:5px 0;cursor:pointer;user-select:none}
+  .toggle i{width:34px;height:20px;border-radius:10px;background:rgba(255,255,255,.15);position:relative;transition:.2s}
+  .toggle i::after{content:"";position:absolute;width:14px;height:14px;border-radius:50%;background:#fff;top:3px;left:3px;transition:.2s}
+  .toggle.on i{background:var(--accent)} .toggle.on i::after{left:17px}
+  .btn{width:100%;margin-top:8px;padding:8px;border-radius:9px;border:0;background:var(--accent);color:var(--ink);font:inherit;font-weight:700;font-size:13px;cursor:pointer}
+  .btn:hover{filter:brightness(1.08)}
+  #stats{right:16px;bottom:16px;width:250px}
+  #stats .name{font-size:16px;font-weight:700;margin:0}
+  #stats .cat{color:var(--muted);font-size:12px;margin:2px 0 4px}
+  #stats code{display:inline-block;font:11px ui-monospace,Menlo,monospace;color:var(--accent);background:rgba(0,0,0,.25);padding:2px 6px;border-radius:5px;margin-bottom:8px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #stats .desc{font-size:12px;color:#d9cfe9;line-height:1.45;margin:0 0 10px}
+  .grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-bottom:10px}
+  .grid4 div{background:rgba(0,0,0,.25);border-radius:8px;padding:6px 4px;text-align:center}
+  .grid4 b{display:block;font-size:13px;font-variant-numeric:tabular-nums}
+  .grid4 span{font-size:9.5px;color:var(--muted)}
+  .lodrow{display:grid;grid-template-columns:36px 1fr 50px;align-items:center;gap:8px;font-size:11px;color:var(--muted);margin:3px 0;font-variant-numeric:tabular-nums}
+  .lodrow .bar{height:6px;background:rgba(255,255,255,.08);border-radius:3px;overflow:hidden}
+  .lodrow .bar i{display:block;height:100%;background:#8c79ad;border-radius:3px;transition:width .3s}
+  .lodrow.on{color:var(--text)} .lodrow.on .bar i{background:var(--accent)}
+  .lodrow em{font-style:normal;text-align:right}
+
+  /* top title + bottom bar */
+  #title{position:fixed;top:18px;left:50%;transform:translateX(-50%);text-align:center;pointer-events:none}
+  #title b{display:block;font-size:22px;letter-spacing:.01em;text-shadow:0 2px 12px rgba(0,0,0,.4)}
+  #title span{font-size:12px;color:var(--muted)}
+  #title em{font-style:normal;color:var(--accent);font-weight:700}
+  #bar{left:50%;bottom:16px;transform:translateX(-50%);display:flex;align-items:center;gap:6px;padding:6px}
+  #bar button{border:0;background:rgba(255,255,255,.08);color:var(--text);border-radius:8px;height:34px;min-width:34px;padding:0 10px;font:inherit;font-size:13px;cursor:pointer}
+  #bar button:hover{background:rgba(255,255,255,.16)}
+  #bar button.on{background:var(--accent);color:var(--ink);font-weight:700}
+  #bar .sep{width:1px;height:22px;background:var(--line);margin:0 4px}
+  #bar .tier{font-size:12px;color:var(--muted);padding:0 6px;white-space:nowrap}
+  #bar .tier b{color:var(--accent)}
+  #tourbar{position:fixed;left:0;bottom:0;height:3px;background:var(--accent);width:0}
+  kbd{font:inherit;font-size:10px;padding:1px 5px;border:1px solid var(--line);border-radius:4px;background:rgba(255,255,255,.05)}
+  .hint{font-size:10.5px;color:var(--muted);margin-top:8px;line-height:1.6}
+
+  @media (max-width:1280px){ #bar .tier,#bar .sep.t{display:none} }
+  @media (max-width:1080px){ #title{display:none} }
+  @media (max-height:740px){ #stats .desc,#controls .hint{display:none} }
+  @media (max-width:760px){
+    #side{top:10px;left:10px;right:10px;bottom:auto;width:auto;padding:8px}
+    #brand{padding-bottom:6px} #brand small{display:none}
+    #chips{flex-wrap:nowrap;overflow-x:auto;padding:6px 0}
+    #chips button{flex:none}
+    #list{display:flex;gap:4px;overflow-x:auto;overflow-y:hidden;flex:none}
+    #list h2{display:none}
+    #list button{width:auto;flex:none;white-space:nowrap}
+    #list button span.c{display:none}
+    #controls{top:auto;bottom:62px;right:10px;left:10px;width:auto;padding:10px;max-height:30vh;overflow:auto}
+    #stats{display:none}
+    #bar{bottom:10px}
+  }
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<div id="side" class="panel">
+  <div id="brand">
+    <svg viewBox="0 0 40 40" aria-hidden="true">
+      <rect width="40" height="40" rx="9" fill="#7438b0"/>
+      <path d="M14 10l3 3 3-5 3 5 3-3-1.5 6h-9z" fill="#fbb01c"/>
+      <text x="20" y="30" text-anchor="middle" font-family="Impact,Arial Black,sans-serif" font-size="14" font-style="italic" fill="#fff" stroke="#2a1442" stroke-width=".8">AFAIR</text>
+    </svg>
+    <div><h1>A FAIR Studio</h1><small id="count">Nusantara Kit</small></div>
+  </div>
+  <div id="chips"></div>
+  <div id="list"></div>
+</div>
+
+<div id="title"><b id="tName"></b><span id="tSub"></span></div>
+
+<div id="controls" class="panel">
+  <h2>Tampilan</h2>
+  <div class="seg" id="mode"></div>
+  <h2>Level of Detail</h2>
+  <div class="seg" id="lod"></div>
+  <h2>Varian Warna</h2>
+  <div class="swatches" id="variants"></div>
+  <div class="toggle" id="tCol">Collision mesh <i></i></div>
+  <div class="toggle on" id="tTurn">Turntable <i></i></div>
+  <button class="btn" id="shot">Render PNG</button>
+  <div class="hint"><kbd>←</kbd><kbd>→</kbd> aset · <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> LOD · <kbd>W</kbd> wire · <kbd>C</kbd> collision · <kbd>T</kbd> putar · <kbd>P</kbd> tour · <kbd>F</kbd> layar penuh</div>
+</div>
+
+<div id="stats" class="panel">
+  <p class="name" id="sName"></p>
+  <p class="cat" id="sCat"></p>
+  <code id="sId"></code>
+  <p class="desc" id="sDesc"></p>
+  <div class="grid4">
+    <div><b id="sTri">0</b><span>Triangles</span></div>
+    <div><b id="sMesh">0</b><span>Mesh</span></div>
+    <div><b id="sMat">0</b><span>Material</span></div>
+    <div><b id="sCol">0</b><span>Collider</span></div>
+  </div>
+  <div id="sLod"></div>
+</div>
+
+<div id="bar" class="panel">
+  <button id="prev" title="Aset sebelumnya">◀</button>
+  <button id="tour" title="Auto-tour (P)">▶ Auto-tour</button>
+  <button id="next" title="Aset berikutnya">▶</button>
+  <button id="full" title="Layar penuh (F)">⛶</button>
+  <span class="sep t"></span>
+  <span class="tier">Basic <b>$15</b></span><span class="tier">Pro <b>$25</b></span><span class="tier">Studio <b>$40</b></span>
+</div>
+<div id="tourbar"></div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+const V3 = THREE.Vector3, PI = Math.PI;
+
+// ======================================================================
+// state, palettes, materials
+// ======================================================================
+const state = { asset:'lapak', lod:0, variant:'jati', mode:'shaded', collision:false, turntable:true, filter:'all', tour:false };
+
+const VARIANTS = {
+  jati:  { name:'Kayu Jati', wood:0x9b6b43, woodDark:0x5e3d24, roof:0xa9472c, cloth1:0xd99a2b, cloth2:0xf1e2c0, clay:0xb5603a, metal:0x9aa4ad, accent:0x1f7a5c, sack:0xd9c59b, rope:0xb08550, stone:0x9b9488, stone2:0x857e73 },
+  bambu: { name:'Bambu',     wood:0xc9a95c, woodDark:0x8a6d32, roof:0x5f5136, cloth1:0x3f8f6b, cloth2:0xe9e1c6, clay:0xa8764f, metal:0x7f8a80, accent:0xc0392b, sack:0xcbbf98, rope:0xbfa064, stone:0x8f9a86, stone2:0x7b8673 },
+  warna: { name:'Cat Warna', wood:0x2f8f9d, woodDark:0x1f5f6a, roof:0xd2452f, cloth1:0xe94f64, cloth2:0xfff0d1, clay:0xc8693f, metal:0xb7bcc4, accent:0x7438b0, sack:0xe0cfa6, rope:0xc19a5b, stone:0xa49a8c, stone2:0x8d8476 },
+};
+const FIXED = {
+  fOrange:0xe8862a, fRed:0xc8323b, fGreen:0x6fa83a, fYellow:0xe8c547,
+  skin:0xc68a5c, hair:0x2a1d17, dark:0x1b1420, leaf:0x5d9d3a, leafDry:0xa99a4a, trunk:0x8b8f4f, jantung:0x7a2d4a,
+  gold:0xd4a640, blade:0x8a909b, bamboo:0xa7b04e, soil:0x6b4a32, grass:0x6d9a45, coco:0x7a5a2e,
+};
+const METALS = new Set(['metal','gold','blade']);
+
+const matCache = {};
+function M(key){
+  const k = state.variant + ':' + key;
+  if (matCache[k]) return matCache[k];
+  const ds = key.endsWith('DS'), base = ds ? key.slice(0,-2) : key;
+  const color = VARIANTS[state.variant][base] ?? FIXED[base];
+  const metal = METALS.has(base);
+  return matCache[k] = new THREE.MeshStandardMaterial({
+    color, flatShading:true, roughness: metal ? .45 : .85, metalness: metal ? .3 : 0,
+    side: ds ? THREE.DoubleSide : THREE.FrontSide
+  });
+}
+const glassMat  = new THREE.MeshStandardMaterial({ color:0xfff1c9, emissive:0xffb648, emissiveIntensity:1.3, transparent:true, opacity:.72, side:THREE.DoubleSide });
+const clearMat  = new THREE.MeshStandardMaterial({ color:0xe2f3ff, transparent:true, opacity:.45, roughness:.1 });
+const mantleMat = new THREE.MeshBasicMaterial({ color:0xfff4d6 });
+const flameMat  = new THREE.MeshBasicMaterial({ color:0xff7a1a });
+const flameCore = new THREE.MeshBasicMaterial({ color:0xffe27a });
+const clayMat   = new THREE.MeshStandardMaterial({ color:0xd9d4cc, flatShading:true, roughness:1 });
+const wireMat   = new THREE.LineBasicMaterial({ color:0x150a22, transparent:true, opacity:.6 });
+const colMat    = new THREE.MeshBasicMaterial({ color:0x37e39a, transparent:true, opacity:.16, depthWrite:false });
+const colLine   = new THREE.LineBasicMaterial({ color:0x37e39a });
+
+// ======================================================================
+// procedural PBR textures
+// ======================================================================
+const hex = n => '#' + n.toString(16).padStart(6,'0');
+const shade = (n,f) => `rgb(${[16,8,0].map(s => Math.min(255, Math.round(((n>>s)&255)*f))).join(',')})`;
+function rng(seed){ return () => ((seed = (seed*16807) % 2147483647) - 1) / 2147483646; }
+
+const texCache = {};
+function canvasTex(kind){
+  const k = state.variant + ':' + kind;
+  if (texCache[k]) return texCache[k];
+  const P = VARIANTS[state.variant], c = document.createElement('canvas');
+  c.width = c.height = 256;
+  const x = c.getContext('2d'), r = rng(kind.length*7919 + kind.charCodeAt(0));
+  switch (kind){
+    case 'kayu':
+      for (let i=0;i<4;i++){
+        const y0 = i*64;
+        x.fillStyle = shade(P.wood, .88 + r()*.24); x.fillRect(0,y0,256,64);
+        for (let l=0;l<14;l++){
+          x.strokeStyle = `rgba(0,0,0,${.06+r()*.1})`; x.lineWidth = 1+r()*1.5; x.beginPath();
+          const yy = y0 + 4 + r()*56, a = r()*3;
+          for (let px=0;px<=256;px+=8) x.lineTo(px, yy + Math.sin(px/30+a)*2.5);
+          x.stroke();
+        }
+        x.fillStyle = shade(P.woodDark,.8); x.fillRect(0,y0,256,3); x.fillRect((i*97)%256,y0,3,64);
+      }
+      break;
+    case 'bata':
+      x.fillStyle = shade(P.stone,1.15); x.fillRect(0,0,256,256);
+      for (let row=0;row<8;row++) for (let col=-1;col<5;col++){
+        x.fillStyle = shade(P.clay, .82 + r()*.3);
+        x.fillRect(col*64+(row%2?32:0)+3, row*32+3, 58, 26);
+      }
+      break;
+    case 'batik':
+      x.fillStyle = hex(P.cloth2); x.fillRect(0,0,256,256);
+      for (let i=0;i<5;i++) for (let j=0;j<5;j++){
+        const cx = i*64, cy = j*64;
+        for (let q=0;q<4;q++){
+          x.save(); x.translate(cx,cy); x.rotate(PI/4 + q*PI/2);
+          x.beginPath(); x.ellipse(0,-17,10,16,0,0,PI*2);
+          x.fillStyle = hex(P.cloth1); x.fill(); x.lineWidth = 3; x.strokeStyle = hex(P.woodDark); x.stroke();
+          x.beginPath(); x.ellipse(0,-17,3,6,0,0,PI*2); x.fillStyle = hex(P.woodDark); x.fill();
+          x.restore();
+        }
+        x.beginPath(); x.arc(cx+32,cy+32,4,0,PI*2); x.fillStyle = hex(P.woodDark); x.fill();
+      }
+      break;
+    case 'anyaman':
+      x.fillStyle = shade(P.woodDark,.7); x.fillRect(0,0,256,256);
+      for (let i=0;i<8;i++) for (let j=0;j<8;j++){
+        x.fillStyle = shade(P.rope, .85 + r()*.25);
+        if ((i+j)%2) x.fillRect(i*32+2, j*32+6, 28, 20); else x.fillRect(i*32+6, j*32+2, 20, 28);
+      }
+      break;
+    case 'genteng':
+      x.fillStyle = shade(P.roof,.55); x.fillRect(0,0,256,256);
+      for (let row=-1;row<9;row++) for (let col=-1;col<9;col++){
+        const cx = col*32+(row%2?16:0)+16, cy = row*32+8;
+        const g = x.createLinearGradient(cx-14,0,cx+14,0);
+        g.addColorStop(0, shade(P.roof,.7)); g.addColorStop(.5, shade(P.roof,1.15)); g.addColorStop(1, shade(P.roof,.7));
+        x.fillStyle = g; x.beginPath(); x.roundRect(cx-14, cy, 28, 34, [3,3,14,14]); x.fill();
+      }
+      break;
+    case 'batu':
+      x.fillStyle = shade(P.stone2,.6); x.fillRect(0,0,256,256);
+      for (let i=0;i<5;i++) for (let j=0;j<5;j++){
+        x.fillStyle = shade(P.stone, .8 + r()*.35);
+        x.beginPath(); x.roundRect(i*52 + 2 + r()*4, j*52 + 2 + r()*4, 44 + r()*10, 44 + r()*10, 9); x.fill();
+      }
+      break;
+    case 'bambu': {
+      const B = FIXED.bamboo;
+      for (let i=0;i<9;i++){
+        const x0 = i*28.5, g = x.createLinearGradient(x0,0,x0+28,0);
+        g.addColorStop(0, shade(B,.6)); g.addColorStop(.5, shade(B,1.15)); g.addColorStop(1, shade(B,.6));
+        x.fillStyle = g; x.fillRect(x0,0,29,256);
+        x.fillStyle = shade(B,.45); const ny = r()*128; x.fillRect(x0,ny,29,4); x.fillRect(x0,ny+128,29,4);
+      }
+      break;
+    }
+    case 'kapur':
+      x.fillStyle = '#e8e1d2'; x.fillRect(0,0,256,256);
+      for (let i=0;i<900;i++){ x.fillStyle = `rgba(${r()<.5?'60,45,30':'255,255,255'},${r()*.09})`; x.fillRect(r()*256, r()*256, 2+r()*5, 2+r()*5); }
+      x.strokeStyle = 'rgba(70,55,40,.35)'; x.lineWidth = 1.2;
+      for (let k=0;k<5;k++){ let px = r()*256, py = r()*256; x.beginPath(); x.moveTo(px,py); for (let s=0;s<9;s++){ px += (r()-.5)*28; py += r()*16; x.lineTo(px,py); } x.stroke(); }
+      break;
+    case 'tanah':
+      x.fillStyle = hex(FIXED.soil); x.fillRect(0,0,256,256);
+      for (let i=0;i<140;i++){ x.globalAlpha = .45; x.fillStyle = shade(FIXED.soil, .7 + r()*.6); x.beginPath(); x.arc(r()*256, r()*256, 4 + r()*16, 0, PI*2); x.fill(); }
+      x.globalAlpha = 1;
+      for (let i=0;i<70;i++){ x.fillStyle = shade(P.stone, .75 + r()*.45); x.beginPath(); x.ellipse(r()*256, r()*256, 2+r()*4, 2+r()*3, r()*3, 0, PI*2); x.fill(); }
+      break;
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 4;
+  return texCache[k] = t;
+}
+function texMat(kind){
+  const k = state.variant + ':tex:' + kind;
+  if (matCache[k]) return matCache[k];
+  const t = canvasTex(kind);
+  return matCache[k] = new THREE.MeshStandardMaterial({ map:t, bumpMap:t, bumpScale:1.5, roughness: kind==='genteng' ? .55 : .85 });
+}
+function label(text, w=.85){
+  const c = document.createElement('canvas'); c.width = 512; c.height = 96;
+  const x = c.getContext('2d');
+  x.fillStyle = 'rgba(30,15,50,.88)'; x.strokeStyle = '#fbb01c'; x.lineWidth = 4;
+  x.beginPath(); x.roundRect(4,4,504,88,44); x.fill(); x.stroke();
+  x.fillStyle = '#fff'; x.font = 'bold 38px system-ui,sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle';
+  x.fillText(text, 256, 50);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map:t, depthWrite:false }));
+  s.scale.set(w, w*.19, 1); return s;
+}
+
+// ======================================================================
+// geometry helpers
+// ======================================================================
+let curLod = 0;
+const S = (n, min=3) => Math.max(min, Math.round(n * [1,.55,.3][curLod]));
+const D = l => curLod <= l;   // this detail exists up to LOD l
+
+function mk(geo, mat, parent, x=0, y=0, z=0){
+  const m = new THREE.Mesh(geo, typeof mat === 'string' ? M(mat) : mat);
+  m.position.set(x,y,z); parent && parent.add(m); return m;
+}
+const box = (g,mat,w,h,d,x,y,z) => mk(new THREE.BoxGeometry(w,h,d), mat, g, x,y,z);
+function rod(g, a, b, r, mat, seg=4){
+  const d = new V3().subVectors(b,a), len = d.length();
+  const m = mk(new THREE.CylinderGeometry(r,r,len,seg), mat, g);
+  m.position.copy(a).addScaledVector(d,.5);
+  m.quaternion.setFromUnitVectors(new V3(0,1,0), d.normalize());
+  return m;
+}
+const ring = (g,mat,r,t,y,x=0,z=0) => { const m = mk(new THREE.TorusGeometry(r,t,3,S(16,6)), mat, g, x,y,z); m.rotation.x = PI/2; return m; };
+function col(g, geo, x, y, z, rx=0, ry=0, rz=0){
+  const m = new THREE.Mesh(geo, colMat);
+  m.position.set(x,y,z); m.rotation.set(rx,ry,rz);
+  m.userData.collider = true; m.renderOrder = 10;
+  m.add(new THREE.LineSegments(new THREE.EdgesGeometry(geo), colLine));
+  g.add(m); return m;
+}
+const colBox = (g,w,h,d,x,y,z,ry=0) => col(g, new THREE.BoxGeometry(w,h,d), x,y,z,0,ry);
+const colCyl = (g,r,h,x,y,z,rx=0,rz=0) => col(g, new THREE.CylinderGeometry(r,r,h,12), x,y,z,rx,0,rz);
+const lathe = (pts, seg) => new THREE.LatheGeometry(pts.map(([x,y]) => new THREE.Vector2(x,y)), seg);
+function extrude(pts, depth, bevel=.003, curve=8){
+  const s = new THREE.Shape();
+  pts.forEach(([x,y],i) => i ? s.lineTo(x,y) : s.moveTo(x,y));
+  const geo = new THREE.ExtrudeGeometry(s, { depth, bevelEnabled:bevel>0, bevelThickness:bevel, bevelSize:bevel*.7, bevelSegments:1, curveSegments:curve });
+  geo.translate(0,0,-depth/2); return geo;
+}
+// gable roof, ridge along z. width = span across x
+function gable(g, mat, width, len, h, y, over=.25){
+  const half = width/2 + over, slope = Math.hypot(half,h), ang = Math.atan2(h,half);
+  for (const s of [-1,1]){
+    const m = box(g, mat, slope, .07, len + over*2, s*half/2, y + h/2, 0);
+    m.rotation.z = -s*ang;
+  }
+}
+function prism(width, h, len){
+  const geo = extrude([[-width/2,0],[width/2,0],[0,h]], len, 0); return geo;
+}
+function wheel(r, n=6, tube=.03){
+  const w = new THREE.Group();
+  mk(new THREE.TorusGeometry(r,tube,S(6),S(24,8)), 'dark', w);
+  mk(new THREE.CylinderGeometry(r*.14,r*.14,.06,S(10,5)), 'metal', w).rotation.x = PI/2;
+  const k = [n, Math.ceil(n*.67), Math.ceil(n/2)][curLod];
+  for (let i=0;i<k;i++) mk(new THREE.BoxGeometry(.012,r*2,.012), 'metal', w).rotation.z = i*PI/k;
+  return w;
+}
+// deterministic lumpy deformation for rocks/bushes
+function lumpy(geo, amt, seed=1){
+  const p = geo.attributes.position, v = new V3();
+  for (let i=0;i<p.count;i++){
+    v.fromBufferAttribute(p,i);
+    const n = 1 + amt*(Math.sin(v.x*7.1+seed)*Math.cos(v.z*6.3-seed) + Math.sin(v.y*8.7+seed*2)*.6);
+    p.setXYZ(i, v.x*n, v.y*n, v.z*n);
+  }
+  geo.computeVertexNormals(); return geo;
+}
+function stand(g, w=.5, d=.18){
+  box(g,'woodDark',w,.05,d,0,.025,0);
+  if (D(1)) box(g,'gold',w-.04,.014,d-.04,0,.056,0);
+}
+
+// ======================================================================
+// PROPS
+// ======================================================================
+function buildBasket(withCol=true, fruit=true){
+  const g = new THREE.Group();
+  mk(lathe([[0,0],[.26,0],[.32,.04],[.38,.22],[.41,.27]], S(18,5)), 'ropeDS', g);
+  mk(new THREE.TorusGeometry(.41,.03,S(6),S(18,5)), 'woodDark', g, 0,.27,0).rotation.x = PI/2;
+  if (D(0)) for (const [y,r] of [[.09,.335],[.17,.362]]) ring(g,'woodDark',r,.012,y);
+  if (fruit){
+    const n = [8,5,3][curLod], keys = ['fOrange','fRed','fGreen','fYellow'];
+    for (let i=0;i<n;i++){
+      const a = i/(n-1||1)*PI*2, r = i===0 ? 0 : .18;
+      mk(new THREE.IcosahedronGeometry(.1, D(0)?1:0), keys[i%4], g, Math.cos(a)*r, i===0?.3:.24, Math.sin(a)*r);
+    }
+  }
+  if (withCol) colCyl(g,.42,.32,0,.16,0);
+  return g;
+}
+
+function buildKendi(withCol=true){
+  const g = new THREE.Group();
+  mk(lathe([[0,0],[.16,0],[.19,.03],[.29,.14],[.33,.28],[.29,.42],[.18,.52],[.1,.58],[.085,.68],[.11,.76],[.12,.79],[.07,.79],[.07,.7],[0,.7]], S(22,6)), 'clay', g);
+  mk(new THREE.CylinderGeometry(.035,.06,.28,S(10,4)), 'clay', g, .28,.47,0).rotation.z = -.95;
+  if (D(1)) ring(g,'accent',.333,.015,.28);
+  if (D(0)) ring(g,'accent',.115,.012,.74);
+  if (withCol) colCyl(g,.34,.8,0,.4,0);
+  return g;
+}
+
+function buildLamp(withCol=true, light=true){
+  const g = new THREE.Group();
+  mk(lathe([[0,0],[.15,0],[.17,.04],[.17,.18],[.12,.24],[.06,.27],[0,.27]], S(18,6)), 'metal', g);
+  if (D(1)) mk(new THREE.CylinderGeometry(.025,.025,.08,6), 'metal', g, .19,.12,0).rotation.z = PI/2;
+  mk(new THREE.CylinderGeometry(.025,.025,.08,S(8,4)), 'metal', g, 0,.3,0);
+  mk(new THREE.CylinderGeometry(.11,.11,.22,S(16,6),1,true), glassMat, g, 0,.45,0).userData.noShadow = true;
+  if (D(1)) mk(new THREE.SphereGeometry(.045,S(10,4),S(8,3)), mantleMat, g, 0,.44,0).userData.noShadow = true;
+  if (D(0)) for (let i=0;i<4;i++){ const a=i*PI/2+PI/4; mk(new THREE.CylinderGeometry(.008,.008,.22,4), 'metal', g, Math.cos(a)*.125,.45,Math.sin(a)*.125); }
+  mk(new THREE.ConeGeometry(.16,.13,S(16,6)), 'metal', g, 0,.625,0);
+  mk(new THREE.CylinderGeometry(.04,.05,.07,S(10,4)), 'metal', g, 0,.71,0);
+  mk(new THREE.TorusGeometry(.12,.012,4,S(16,6),PI), 'metal', g, 0,.66,0);
+  if (light){ const L = new THREE.PointLight(0xffc46b, 1.4, 3, 2); L.position.y = .45; g.add(L); }
+  if (withCol) colCyl(g,.17,.8,0,.4,0);
+  return g;
+}
+
+function buildSack(withCol=true){
+  const g = new THREE.Group();
+  const geo = new THREE.SphereGeometry(.3, S(18,6), S(14,5));
+  const p = geo.attributes.position, v = new V3();
+  for (let i=0;i<p.count;i++){
+    v.fromBufferAttribute(p,i);
+    let x=v.x*1.05, y=v.y*1.35, z=v.z*.85;
+    y = Math.max(y,-.3);
+    if (y < -.2){ x*=1.1; z*=1.1; }
+    if (y > .22){ const t=Math.min(1,(y-.22)/.19); x*=1-t*.75; z*=1-t*.75; }
+    const n = 1 + .05*Math.sin(x*17+z*9)*Math.cos(y*13);
+    p.setXYZ(i, x*n, y+.3, z*n);
+  }
+  geo.computeVertexNormals();
+  mk(geo, 'sack', g);
+  mk(new THREE.TorusGeometry(.065,.022,S(5,3),S(12,5)), 'rope', g, 0,.6,0).rotation.x = PI/2;
+  mk(new THREE.ConeGeometry(.09,.13,S(8,4)), 'sack', g, 0,.69,0).rotation.x = PI;
+  if (D(1)) box(g,'accent',.24,.13,.012,0,.3,.262).rotation.x = -.08;
+  if (withCol) colBox(g,.66,.7,.55,0,.35,0);
+  return g;
+}
+
+function buildGentong(withCol=true){
+  const g = new THREE.Group();
+  mk(lathe([[0,0],[.2,0],[.3,.12],[.36,.33],[.33,.5],[.24,.62],[.26,.66],[.21,.67],[.19,.62],[0,.62]], S(22,6)), 'clay', g);
+  if (D(1)) ring(g,'woodDark',.36,.014,.33);
+  mk(new THREE.CylinderGeometry(.25,.25,.03,S(18,6)), 'wood', g, 0,.685,0);
+  if (D(1)){ // gayung (coconut-shell dipper) on the lid
+    const cup = mk(new THREE.SphereGeometry(.07,S(10,5),S(6,3),0,PI*2,PI/2,PI/2), 'cocoDS', g, -.05,.77,0);
+    cup.rotation.x = PI;
+    rod(g, new V3(-.05,.73,0), new V3(.2,.72,.08), .012, 'woodDark', 4);
+  }
+  if (D(0)) for (let i=0;i<7;i++){ const a=i/7*PI*2; mk(new THREE.IcosahedronGeometry(.07,0), 'stone', g, Math.cos(a)*.38,.03,Math.sin(a)*.38); }
+  if (withCol) colCyl(g,.36,.75,0,.37,0);
+  return g;
+}
+
+function buildLesung(withCol=true){
+  const g = new THREE.Group();
+  for (const x of [-.6,.6]) box(g,'woodDark',.18,.14,.5,x,.07,0);
+  box(g,'wood',1.8,.32,.44,0,.3,0);
+  if (D(1)) for (const x of [-.4,.35]){
+    box(g,'dark',.42,.02,.24,x,.465,0);
+    if (D(0)) mk(new THREE.SphereGeometry(.09,8,4,0,PI*2,0,PI/2), 'cloth2', g, x,.46,0).scale.set(1.8,.5,.9);
+  }
+  if (D(0)) box(g,'woodDark',.06,.24,.45,.0,.3,0);
+  rod(g, new V3(.35,.47,0), new V3(.55,1.95,-.3), .04, 'wood', S(8,4));
+  rod(g, new V3(-.42,.47,.02), new V3(-.75,1.9,-.28), .04, 'wood', S(8,4));
+  if (withCol){ colBox(g,1.8,.46,.5,0,.23,0); colCyl(g,.06,1.5,.45,1.2,-.15,-.2,-.13); }
+  return g;
+}
+
+function buildGong(withCol=true){
+  const g = new THREE.Group();
+  for (const x of [-.65,.65]){ box(g,'woodDark',.5,.1,.18,x,.05,0); box(g,'woodDark',.12,1.4,.12,x,.75,0); }
+  box(g,'woodDark',1.55,.12,.15,0,1.4,0);
+  if (D(1)) for (const s of [-1,1]){ const c = mk(new THREE.ConeGeometry(.1,.3,S(6,4)), 'gold', g, s*.86,1.5,0); c.rotation.z = -s*.9; }
+  if (D(0)) box(g,'gold',.6,.06,.17,0,1.49,0);
+  const gong = mk(lathe([[0,.07],[.06,.07],[.09,.03],[.14,.02],[.38,.02],[.42,-.01],[.42,-.07],[.39,-.07],[0,-.04]], S(28,8)), 'gold', g, 0,.82,0);
+  gong.rotation.x = PI/2;
+  for (const s of [-1,1]) rod(g, new V3(s*.25,1.15,0), new V3(s*.2,1.34,0), .01, 'rope', 3);
+  if (D(1)){ rod(g, new V3(.55,.1,.3), new V3(.35,.65,.38), .018, 'wood', 5); mk(new THREE.SphereGeometry(.07,S(10,5),S(8,4)), 'cloth1', g, .35,.67,.38); }
+  if (withCol){ colBox(g,1.55,1.5,.25,0,.75,0); colCyl(g,.42,.12,0,.82,0,PI/2); }
+  return g;
+}
+
+function buildBedug(withCol=true){
+  const g = new THREE.Group();
+  for (const x of [-.4,.4]){
+    for (const z of [-.33,.33]){ const l = box(g,'wood',.08,.9,.08,x,.45,z); l.rotation.x = z>0 ? -.15 : .15; }
+    box(g,'wood',.1,.1,.8,x,.5,0);
+  }
+  box(g,'woodDark',.9,.08,.08,0,.2,0);
+  mk(new THREE.CylinderGeometry(.46,.46,1.1,S(18,6)), 'woodDark', g, 0,.98,0).rotation.z = PI/2;
+  for (const s of [-1,1]){
+    mk(new THREE.CylinderGeometry(.44,.44,.02,S(18,6)), 'sack', g, s*.56,.98,0).rotation.z = PI/2;
+    if (D(1)){ const r = mk(new THREE.TorusGeometry(.45,.02,4,S(18,6)), 'rope', g, s*.52,.98,0); r.rotation.y = PI/2; }
+    if (D(0)) for (let i=0;i<16;i++){ const a = i/16*PI*2; box(g,'cloth2',.06,.03,.03,s*.5,.98+Math.cos(a)*.47,Math.sin(a)*.47); }
+  }
+  if (D(1)){ rod(g, new V3(.75,.02,.3), new V3(.62,.7,.45), .02, 'wood', 5); mk(new THREE.SphereGeometry(.06,8,6), 'cloth1', g, .62,.72,.45); }
+  if (withCol){ colCyl(g,.47,1.15,0,.98,0,0,PI/2); colBox(g,.9,.6,.8,0,.3,0); }
+  return g;
+}
+
+function buildAngklungOne(){
+  const g = new THREE.Group();
+  box(g,'wood',.5,.06,.12,0,.03,0);
+  for (const x of [-.22,.22]) rod(g, new V3(x,.06,0), new V3(x,.78,0), .018, 'bamboo', 5);
+  box(g,'wood',.5,.035,.05,0,.78,0);
+  box(g,'wood',.5,.03,.05,0,.48,-.05);
+  [[-.1,.62],[.03,.5],[.14,.38]].forEach(([x,h]) => {
+    mk(new THREE.CylinderGeometry(.04,.04,h,S(10,5)), 'bamboo', g, x,.06+h/2,.03);
+    if (D(0)) ring(g,'trunk',.042,.006,.06+h*.55,x,.03);
+    box(g,'dark',.05,h*.25,.01,x,.06+h*.72,.07);
+  });
+  return g;
+}
+function buildAngklung(withCol=true){
+  const g = new THREE.Group();
+  [[-.62,1],[0,.82],[.55,.66]].forEach(([x,s]) => { const a = buildAngklungOne(); a.position.x = x; a.scale.setScalar(s); g.add(a); });
+  if (withCol) colBox(g,1.6,.8,.2,0,.4,0);
+  return g;
+}
+
+function buildObor(withCol=true, light=true){
+  const g = new THREE.Group();
+  for (let i=0;i<(D(1)?6:3);i++){ const a = i/6*PI*2; mk(new THREE.IcosahedronGeometry(.09,0), 'stone', g, Math.cos(a)*.11,.05,Math.sin(a)*.11); }
+  mk(new THREE.CylinderGeometry(.03,.035,1.6,S(8,4)), 'bamboo', g, 0,.8,0);
+  if (D(0)) for (const y of [.4,.8,1.2]) ring(g,'trunk',.036,.007,y);
+  mk(new THREE.CylinderGeometry(.05,.04,.2,S(10,5)), 'bamboo', g, 0,1.68,0);
+  if (D(1)) ring(g,'rope',.052,.01,1.62);
+  const f = mk(new THREE.ConeGeometry(.07,.26,S(8,5)), flameMat, g, 0,1.9,0);
+  f.userData.flame = true; f.userData.noShadow = true;
+  if (D(1)){ const c = mk(new THREE.ConeGeometry(.035,.14,6), flameCore, g, 0,1.84,0); c.userData.flame = true; c.userData.noShadow = true; }
+  if (light){ const L = new THREE.PointLight(0xff9a3c, 1.8, 4, 2); L.position.y = 1.9; g.add(L); }
+  if (withCol) colCyl(g,.08,1.8,0,.9,0);
+  return g;
+}
+
+function buildWarung(withCol=true){
+  const g = new THREE.Group();
+  box(g,'wood',1.2,.05,.7,0,.75,0);
+  for (const x of [-.55,.55]) for (const z of [-.3,.3]) box(g,'woodDark',.06,.73,.06,x,.365,z);
+  if (D(1)) box(g,'cloth1',1.22,.01,.4,0,.78,0);
+  // lincak (bamboo benches) front & back
+  for (const z of [-.75,.75]){
+    for (const x of [-.6,.6]) for (const dz of [-.15,.15]) rod(g, new V3(x,0,z+dz), new V3(x,.44,z+dz), .025, 'bamboo', 5);
+    const n = [6,3,1][curLod];
+    if (n===1) box(g,'bamboo',1.4,.05,.38,0,.46,z);
+    else for (let i=0;i<n;i++){ const m = mk(new THREE.CylinderGeometry(.03,.03,1.4,S(8,4)), 'bamboo', g, 0,.47,z-.16+i*.32/(n-1)); m.rotation.z = PI/2; }
+  }
+  // teko + gelas + piring gorengan
+  mk(lathe([[0,0],[.08,0],[.1,.08],[.08,.14],[.04,.17],[.045,.19],[0,.19]], S(14,6)), 'metal', g, -.3,.775,0);
+  if (D(1)){ rod(g, new V3(-.22,.83,0), new V3(-.15,.92,0), .012, 'metal', 4); mk(new THREE.TorusGeometry(.06,.01,4,10,PI), 'metal', g, -.4,.88,0).rotation.z = PI/2; }
+  [[.05,-.15],[.15,.12],[-.05,.2]].forEach(([x,z]) => mk(new THREE.CylinderGeometry(.035,.03,.1,S(10,5)), clearMat, g, x,.825,z).userData.noShadow = true);
+  mk(new THREE.CylinderGeometry(.14,.12,.02,S(16,6)), 'cloth2', g, .35,.785,-.05);
+  if (D(1)) for (let i=0;i<5;i++){ const b = box(g,'fOrange',.08,.03,.05,.32+(i%3)*.04-.04,.81+Math.floor(i/3)*.03,-.08+(i%2)*.06); b.rotation.y = i; }
+  if (withCol){ colBox(g,1.2,.8,.7,0,.4,0); colBox(g,1.4,.5,.4,0,.25,-.75); colBox(g,1.4,.5,.4,0,.25,.75); }
+  return g;
+}
+
+function buildTampah(withCol=true){
+  const g = new THREE.Group();
+  mk(new THREE.CylinderGeometry(.35,.3,.3,S(14,6)), 'woodDark', g, 0,.15,0);
+  mk(lathe([[0,.3],[.48,.3],[.54,.36],[.56,.37]], S(24,8)), 'ropeDS', g);
+  mk(new THREE.TorusGeometry(.555,.02,4,S(24,8)), 'woodDark', g, 0,.37,0).rotation.x = PI/2;
+  const sect = (a0, fn) => { for (let i=0;i<[6,4,2][curLod];i++){ const a = a0 + (i/6)*1.2 - .6, r = .15 + (i%3)*.11; fn(Math.cos(a)*r, Math.sin(a)*r, i); } };
+  sect(0, (x,z) => mk(new THREE.SphereGeometry(.06,S(8,4),S(6,3)), 'fRed', g, x,.36,z));                       // tomat
+  sect(PI*2/3, (x,z,i) => { const c = mk(new THREE.ConeGeometry(.025,.16,S(6,3)), 'fOrange', g, x,.34,z); c.rotation.set(PI/2,0,i); }); // wortel
+  sect(PI*4/3, (x,z,i) => { const e = mk(new THREE.CapsuleGeometry(.035,.09,2,S(8,4)), 'jantung', g, x,.35,z); e.rotation.set(PI/2,0,i*.7); }); // terong
+  mk(new THREE.IcosahedronGeometry(.11, D(0)?1:0), 'leaf', g, 0,.39,0);                                   // kol
+  if (withCol) colCyl(g,.56,.45,0,.22,0);
+  return g;
+}
+
+// ======================================================================
+// VEHICLES
+// ======================================================================
+function buildCart(withCol=true){
+  const g = new THREE.Group();
+  box(g,'wood',1.4,.06,.85,0,.6,0);
+  for (const s of [-1,1]){
+    box(g,'wood',.05,.4,.85,s*.675,.83,0);
+    box(g,'wood',1.4,.4,.05,0,.83,s*.4);
+    if (D(0)) for (const y of [.73,.9]) box(g,'woodDark',1.42,.015,.065,0,y,s*.4);
+    if (D(1)) box(g,'woodDark',1.46,.04,.08,0,1.04,s*.4);
+    box(g,'woodDark',1.1,.06,.06,-1.15,.72,s*.3).rotation.z = .12;
+    box(g,'woodDark',.06,.6,.06,-.55,.3,s*.3);
+    const w = new THREE.Group(); w.position.set(.15,.44,s*.5); g.add(w);
+    mk(new THREE.TorusGeometry(.4,.045,S(6),S(24,8)), 'woodDark', w);
+    mk(new THREE.CylinderGeometry(.07,.07,.1,S(10,5)), 'metal', w).rotation.x = PI/2;
+    const n = [6,4,3][curLod];
+    for (let i=0;i<n;i++) mk(new THREE.BoxGeometry(.03,.78,.03), 'wood', w).rotation.z = i*PI/n;
+  }
+  mk(new THREE.CylinderGeometry(.03,.03,1.1,S(8,4)), 'metal', g, .15,.44,0).rotation.x = PI/2;
+  if (D(1)){
+    const a = buildSack(false); a.scale.setScalar(.55); a.position.set(.25,.63,.12); a.rotation.set(0,.6,-.15); g.add(a);
+    const b = buildSack(false); b.scale.setScalar(.5); b.position.set(-.25,.63,-.1); b.rotation.set(0,-.4,.1); g.add(b);
+    const c = buildBasket(false); c.scale.setScalar(.45); c.position.set(.35,.63,-.2); g.add(c);
+  }
+  if (withCol){
+    colBox(g,1.4,.46,.85,0,.83,0);
+    colCyl(g,.44,.1,.15,.44,.5,PI/2); colCyl(g,.44,.1,.15,.44,-.5,PI/2);
+    colBox(g,1.1,.12,.7,-1.15,.72,0);
+  }
+  return g;
+}
+
+function buildBecak(withCol=true){
+  const g = new THREE.Group();
+  // front wheels + axle
+  for (const z of [-.42,.42]){ const w = wheel(.3,8); w.position.set(.38,.3,z); g.add(w); }
+  mk(new THREE.CylinderGeometry(.02,.02,.84,S(6,4)), 'metal', g, .38,.3,0).rotation.x = PI/2;
+  // passenger seat body
+  box(g,'roof',.7,.1,.8,.3,.6,0);
+  box(g,'cloth2',.6,.08,.72,.32,.69,0);
+  const back = box(g,'roof',.1,.55,.8,-.02,.92,0); back.rotation.z = .12;
+  for (const z of [-.41,.41]) box(g,'accent',.62,.34,.04,.3,.48,z);
+  box(g,'roof',.12,.32,.8,.62,.45,0);
+  box(g,'woodDark',.32,.04,.7,.78,.32,0);
+  if (D(0)) for (const z of [-.41,.41]) box(g,'gold',.5,.03,.045,.3,.6,z);
+  // canopy (kap)
+  const kap = mk(new THREE.CylinderGeometry(.44,.44,.86,S(14,5),1,true,-PI/2,PI), 'cloth1DS', g, .08,1.02,0);
+  kap.rotation.x = -PI/2; kap.scale.set(.8,1,1);
+  if (D(1)) for (const z of [-.43,.43]) mk(new THREE.TorusGeometry(.44,.012,3,S(12,5),PI), 'metal', g, .08,1.02,z).scale.set(.8,1,1);
+  // rear frame + driver
+  const rw = wheel(.33,8); rw.position.set(-1.05,.33,0); g.add(rw);
+  for (const z of [-.05,.05]) rod(g, new V3(-1.05,.33,z), new V3(-.65,.3,0), .015, 'metal', 4);
+  rod(g, new V3(-.05,.55,0), new V3(-.65,.3,0), .025, 'metal', S(6,4));
+  rod(g, new V3(-.65,.3,0), new V3(-.8,1.0,0), .022, 'metal', S(6,4));
+  rod(g, new V3(-1.05,.33,0), new V3(-.8,1.0,0), .015, 'metal', 4);
+  box(g,'dark',.22,.05,.14,-.82,1.03,0);
+  rod(g, new V3(-.1,.6,0), new V3(-.16,1.12,0), .02, 'metal', 5);
+  rod(g, new V3(-.18,1.12,-.25), new V3(-.18,1.12,.25), .016, 'metal', 5);
+  if (D(1)){ mk(new THREE.TorusGeometry(.08,.012,4,12), 'metal', g, -.65,.3,.06); for (const z of [-.12,.12]) box(g,'dark',.1,.02,.06,-.65,.22,z); }
+  if (D(0)) box(g,'dark',.42,.012,.012,-.85,.31,.06);
+  if (withCol){
+    colBox(g,.95,.9,.9,.33,.72,0);
+    colCyl(g,.33,.06,-1.05,.33,0,PI/2);
+    colBox(g,.9,.8,.3,-.6,.55,0);
+  }
+  return g;
+}
+
+function buildJukung(withCol=true){
+  const g = new THREE.Group();
+  const hull = mk(new THREE.SphereGeometry(1, S(28,8), S(10,4), 0, PI*2, PI/2, PI/2), 'cloth2DS', g, 0,.42,0);
+  hull.scale.set(2.2,.42,.38);
+  const rim = mk(new THREE.TorusGeometry(1,.03,S(5,3),S(32,10)), 'accent', g, 0,.42,0);
+  rim.rotation.x = PI/2; rim.scale.set(2.2,.38,1);
+  if (D(1)){ const st = mk(new THREE.TorusGeometry(1,.02,3,S(32,10)), 'roof', g, 0,.3,0); st.rotation.x = PI/2; st.scale.set(2.05,.35,1); }
+  for (const s of [-1,1]){
+    const c = mk(new THREE.ConeGeometry(.05,.6,S(6,4)), 'accent', g, s*2.25,.62,0); c.rotation.z = -s*1.0;
+    if (D(0)) mk(new THREE.SphereGeometry(.035,6,4), 'dark', g, s*2.05,.5,.1);
+  }
+  for (const x of [-.6,.5]) box(g,'wood',.12,.04,.7,x,.38,0);
+  // cadik (outriggers)
+  for (const x of [-.85,.85]) for (const s of [-1,1]){
+    rod(g, new V3(x,.48,s*.25), new V3(x,.55,s*.75), .025, 'wood', 4);
+    rod(g, new V3(x,.55,s*.75), new V3(x,.12,s*1.25), .025, 'wood', 4);
+  }
+  for (const s of [-1,1]) mk(new THREE.CylinderGeometry(.05,.05,2.6,S(8,4)), 'woodDark', g, 0,.1,s*1.25).rotation.z = PI/2;
+  if (D(1)){
+    rod(g, new V3(.2,.2,0), new V3(.2,2.3,0), .03, 'wood', 5);
+    const sail = new THREE.Shape(); sail.moveTo(0,0); sail.lineTo(1.3,.2); sail.lineTo(-.1,1.8); sail.closePath();
+    const sm = mk(new THREE.ShapeGeometry(sail), 'cloth1DS', g, .23,.55,0);
+    sm.rotation.y = .15;
+    rod(g, new V3(-.9,.35,-.2), new V3(-1.5,1.5,-.35), .02, 'wood', 4);
+    box(g,'wood',.16,.35,.03,-.9,.25,-.2).rotation.z = .5;
+  }
+  if (withCol){ colBox(g,4.6,.5,.8,0,.25,0); colBox(g,2.6,.12,.12,0,.1,1.25); colBox(g,2.6,.12,.12,0,.1,-1.25); }
+  return g;
+}
+
+// ======================================================================
+// WEAPONS
+// ======================================================================
+function buildKeris(withCol=true){
+  const g = new THREE.Group();
+  const kx = -.1, wx = .13;
+  stand(g);
+  mk(new THREE.CylinderGeometry(.04,.05,.06,S(10,5)), 'woodDark', g, kx,.08,0);
+  mk(lathe([[0,0],[.022,0],[.027,.03],[.02,.06],[.029,.09],[.017,.115],[0,.12]], S(12,5)), 'woodDark', g, kx,.1,0);
+  mk(new THREE.TorusGeometry(.019,.006,4,S(12,5)), 'gold', g, kx,.222,0).rotation.x = PI/2;
+  box(g,'blade',.11,.016,.016,kx+.015,.236,0);
+  const L = .46, n = S(56,14), right = [], left = [];
+  for (let i=0;i<=n;i++){
+    const t = i/n;
+    const w = .028*(1-Math.pow(t,1.5)*.93) + (t < .1 ? .014*(1-t/.1) : 0);
+    const c = .012*Math.sin(t*PI*7)*(1-t*.8);
+    right.push([c+w, t*L]); left.unshift([c-w, t*L]);
+  }
+  mk(extrude([...right, [.002, L+.018], ...left], .004, .003), 'blade', g, kx,.244,0);
+  if (D(1)){
+    const ws = new THREE.Shape();
+    ws.moveTo(-.12,0); ws.quadraticCurveTo(0,-.02,.12,0); ws.quadraticCurveTo(.16,.03,.1,.05);
+    ws.quadraticCurveTo(0,.03,-.1,.055); ws.quadraticCurveTo(-.16,.03,-.12,0);
+    const wg = new THREE.ExtrudeGeometry(ws, { depth:.036, bevelEnabled:true, bevelThickness:.006, bevelSize:.006, bevelSegments:1, curveSegments:S(8,2) });
+    wg.translate(0,0,-.018);
+    mk(wg, 'wood', g, wx,.5,0);
+    box(g,'wood',.034,.42,.022,wx,.29,0);
+    if (D(0)) box(g,'gold',.04,.26,.026,wx,.21,0);
+    mk(new THREE.CylinderGeometry(.03,.04,.05,S(10,5)), 'woodDark', g, wx,.075,0);
+  }
+  if (withCol){ colBox(g,.5,.06,.18,0,.03,0); colBox(g,.08,.62,.03,kx,.4,0); if (D(1)) colBox(g,.3,.5,.05,wx,.31,0); }
+  return g;
+}
+
+function spearHead(){
+  const s = new THREE.Shape();
+  s.moveTo(0,0); s.quadraticCurveTo(.07,.09,0,.36); s.quadraticCurveTo(-.07,.09,0,0);
+  const geo = new THREE.ExtrudeGeometry(s, { depth:.008, bevelEnabled:true, bevelThickness:.004, bevelSize:.003, bevelSegments:1, curveSegments:S(10,3) });
+  geo.translate(0,0,-.004); return geo;
+}
+function buildTombak(withCol=true){
+  const g = new THREE.Group();
+  stand(g,.45,.45);
+  mk(new THREE.CylinderGeometry(.06,.08,.12,S(10,5)), 'woodDark', g, 0,.11,0);
+  mk(new THREE.CylinderGeometry(.02,.022,2.0,S(8,4)), 'wood', g, 0,1.1,0);
+  if (D(0)) for (const y of [.5,1.0,1.5]) ring(g,'gold',.024,.006,y);
+  mk(new THREE.ConeGeometry(.075,.18,S(10,5)), 'roof', g, 0,2.03,0);
+  mk(new THREE.CylinderGeometry(.03,.03,.06,S(8,4)), 'gold', g, 0,2.14,0);
+  mk(spearHead(), 'blade', g, 0,2.17,0);
+  if (withCol){ colBox(g,.45,.06,.45,0,.03,0); colCyl(g,.05,2.5,0,1.28,0); }
+  return g;
+}
+
+function buildGolok(withCol=true){
+  const g = new THREE.Group();
+  const kx = -.1, sx = .14;
+  stand(g);
+  mk(new THREE.CylinderGeometry(.04,.05,.06,S(10,5)), 'woodDark', g, kx,.08,0);
+  mk(lathe([[0,0],[.022,0],[.026,.05],[.022,.1],[.027,.13],[0,.14]], S(12,5)), 'woodDark', g, kx,.1,0);
+  mk(new THREE.CylinderGeometry(.026,.026,.02,S(10,5)), 'metal', g, kx,.25,0);
+  const s = new THREE.Shape();
+  s.moveTo(-.02,0); s.lineTo(.025,0); s.quadraticCurveTo(.07,.2,.07,.36); s.quadraticCurveTo(.055,.45,-.005,.44); s.quadraticCurveTo(-.03,.2,-.02,0);
+  const bg = new THREE.ExtrudeGeometry(s, { depth:.006, bevelEnabled:true, bevelThickness:.003, bevelSize:.002, bevelSegments:1, curveSegments:S(10,3) });
+  bg.translate(0,0,-.003);
+  mk(bg, 'blade', g, kx,.26,0);
+  if (D(1)){
+    box(g,'wood',.1,.44,.04,sx,.3,0);
+    mk(new THREE.CylinderGeometry(.05,.05,.04,S(10,4),1,false,0,PI), 'wood', g, sx,.52,0).rotation.x = PI/2;
+    if (D(0)) for (const y of [.2,.4]) box(g,'gold',.105,.02,.045,sx,y,0);
+    mk(new THREE.CylinderGeometry(.03,.04,.05,S(10,5)), 'woodDark', g, sx,.075,0);
+  }
+  if (withCol){ colBox(g,.5,.06,.18,0,.03,0); colBox(g,.1,.62,.03,kx,.4,0); if (D(1)) colBox(g,.12,.48,.05,sx,.3,0); }
+  return g;
+}
+
+function shieldGroup(){
+  const g = new THREE.Group();
+  mk(extrude([[0,-.7],[.22,-.56],[.26,0],[.22,.56],[0,.7],[-.22,.56],[-.26,0],[-.22,-.56]], .04, .01), 'cloth2', g);
+  box(g,'woodDark',.03,1.25,.02,0,0,.035);
+  mk(new THREE.TorusGeometry(.1,.02,4,S(16,6)), 'dark', g, 0,0,.04);
+  mk(new THREE.CircleGeometry(.08,S(16,6)), 'roof', g, 0,0,.042);
+  if (D(1)){
+    for (const s of [-1,1]){
+      mk(new THREE.ShapeGeometry(new THREE.Shape([new THREE.Vector2(-.15,.52*s), new THREE.Vector2(.15,.52*s), new THREE.Vector2(0,.2*s)])), 'roofDS', g, 0,0,.043);
+      box(g,'dark',.02,.9,.01,s*.17,0,.04);
+    }
+  }
+  if (D(0)) for (let i=0;i<10;i++){ const y = -.6 + i*.133; mk(new THREE.ConeGeometry(.015,.06,4), 'dark', g, (Math.abs(y)>.5?.17:.25)*(i%2?1:-1),y,.0).rotation.z = (i%2?-1:1)*PI/2; }
+  box(g,'woodDark',.05,.25,.04,0,0,-.05);
+  return g;
+}
+function buildTameng(withCol=true){
+  const g = new THREE.Group();
+  stand(g,.6,.3);
+  box(g,'woodDark',.45,.08,.1,0,.09,0);
+  const s = shieldGroup(); s.position.set(0,.82,0); s.rotation.x = -.08; g.add(s);
+  if (withCol){ colBox(g,.6,.13,.3,0,.065,0); colBox(g,.55,1.42,.08,0,.82,0); }
+  return g;
+}
+
+// ======================================================================
+// CHARACTERS
+// ======================================================================
+function buildPerson(o={}){
+  const { shirt='accent', bottom='cloth1', pants=false, hat='caping' } = o;
+  const g = new THREE.Group();
+  if (pants){
+    for (const s of [-1,1]){ box(g,bottom,.13,.72,.14,s*.075,.38,0); if (D(1)) box(g,'skin',.11,.05,.18,s*.075,.025,.02); }
+    box(g,bottom,.3,.1,.18,0,.77,0);
+  } else {
+    for (const s of [-1,1]) box(g,'skin',.11,.42,.12,s*.07,.21,0);
+    mk(new THREE.CylinderGeometry(.17,.2,.5,S(10,5)), bottom, g, 0,.55,0);
+    if (D(0)) for (const [y,r] of [[.4,.192],[.66,.176]]) mk(new THREE.CylinderGeometry(r,r,.035,10), 'cloth2', g, 0,y,0);
+  }
+  mk(new THREE.CylinderGeometry(.16,.18,.42,S(10,5)), shirt, g, 0,.99,0);
+  if (D(1)) mk(new THREE.CylinderGeometry(.181,.181,.06,S(10,5)), 'woodDark', g, 0,.8,0);
+  const arms = {};
+  for (const s of [-1,1]){
+    const arm = new THREE.Group(); arm.position.set(s*.2,1.17,0); g.add(arm);
+    box(arm,shirt,.08,.34,.09,0,-.17,0);
+    box(arm,'skin',.07,.3,.07,0,-.48,0);
+    if (D(1)) mk(new THREE.IcosahedronGeometry(.045,0), 'skin', arm, 0,-.65,0);
+    arm.rotation.z = s*.12;
+    arms[s>0?'R':'L'] = arm;
+  }
+  mk(new THREE.CylinderGeometry(.05,.05,.08,S(8,4)), 'skin', g, 0,1.23,0);
+  mk(new THREE.IcosahedronGeometry(.13, D(0)?1:0), 'skin', g, 0,1.37,0).scale.y = 1.1;
+  if (D(1)) for (const s of [-1,1]) box(g,'dark',.025,.03,.02,s*.045,1.38,.12);
+  if (D(0)) box(g,'dark',.06,.012,.02,0,1.31,.12);
+  const cap = () => mk(new THREE.SphereGeometry(.14,S(12,5),S(6,3),0,PI*2,0,PI/2), 'hair', g, 0,1.37,-.005);
+  if (hat === 'caping'){
+    mk(new THREE.ConeGeometry(.3,.16,S(14,6)), 'rope', g, 0,1.52,0);
+    if (D(0)) ring(g,'woodDark',.3,.01,1.445);
+  } else if (hat === 'blangkon'){
+    mk(new THREE.CylinderGeometry(.14,.135,.1,S(12,5)), 'cloth1', g, 0,1.47,0);
+    if (D(1)) mk(new THREE.SphereGeometry(.06,S(8,4),S(6,3)), 'cloth1', g, 0,1.42,-.13);
+  } else if (hat === 'ikat'){
+    cap(); ring(g,'roof',.138,.025,1.43);
+    if (D(1)) box(g,'gold',.04,.08,.02,0,1.47,.135);
+  } else if (hat === 'konde'){
+    cap(); mk(new THREE.SphereGeometry(.075,S(10,5),S(8,4)), 'hair', g, 0,1.36,-.15);
+    if (D(0)) box(g,'gold',.16,.012,.012,0,1.38,-.2).rotation.z = .3;
+  }
+  return { g, ...arms };
+}
+
+function buildMerchant(withCol=true){
+  const { g, R } = buildPerson({ shirt:'accent', bottom:'cloth1', hat:'caping' });
+  R.rotation.x = -.35;
+  const px = .16, py = 1.215;
+  mk(new THREE.CylinderGeometry(.025,.025,1.7,S(6,4)), 'wood', g, px,py,0).rotation.x = PI/2;
+  for (const z of [-.72,.72]){
+    const b = buildBasket(false, D(1)); b.scale.setScalar(.55); b.position.set(px,.28,z); g.add(b);
+    const top = new V3(px,py-.02,z);
+    for (let k=0;k<3;k++){ const a = k*PI*2/3; rod(g, new V3(px+Math.cos(a)*.22,.43,z+Math.sin(a)*.22), top, .006, 'rope', 3); }
+  }
+  if (withCol){ col(g, new THREE.CapsuleGeometry(.22,1.15,3,8), 0,.8,0); colBox(g,.5,.95,.5,px,.6,.72); colBox(g,.5,.95,.5,px,.6,-.72); }
+  return g;
+}
+
+function buildFarmer(withCol=true){
+  const { g, R } = buildPerson({ shirt:'cloth2', bottom:'woodDark', pants:true, hat:'caping' });
+  R.rotation.x = -.9;
+  rod(g, new V3(.24,.55,.7), new V3(.24,1.55,-.62), .022, 'wood', S(6,4));
+  const blade = box(g,'metal',.26,.03,.22,.24,1.47,-.74); blade.rotation.x = .65;
+  if (D(1)){ const k = buildBasket(false,false); k.scale.setScalar(.5); k.position.set(-.5,0,.2); g.add(k); }
+  if (D(0)) box(g,'cloth1',.06,.3,.02,-.1,1.0,.165);
+  if (withCol){ col(g, new THREE.CapsuleGeometry(.22,1.15,3,8), 0,.8,0); colBox(g,.3,.3,1.5,.24,1.05,0); }
+  return g;
+}
+
+function buildWarrior(withCol=true){
+  const { g, R, L } = buildPerson({ shirt:'roof', bottom:'cloth1', hat:'ikat' });
+  R.rotation.x = -.5;
+  mk(new THREE.CylinderGeometry(.018,.018,2.08,S(6,4)), 'wood', g, .28,1.06,.31);
+  mk(new THREE.ConeGeometry(.05,.12,S(8,4)), 'roof', g, .28,2.06,.31);
+  mk(spearHead(), 'blade', g, .28,2.12,.31);
+  L.rotation.x = -.3;
+  const s = shieldGroup(); s.scale.setScalar(.55); s.position.set(-.34,.82,.22); s.rotation.y = -.35; g.add(s);
+  if (D(1)) rod(g, new V3(.16,1.18,.13), new V3(-.15,.84,.17), .025, 'gold', 4);
+  if (D(0)) for (const sx of [-1,1]) box(g,'gold',.1,.04,.1,sx*.2,1.2,0);
+  if (withCol){ col(g, new THREE.CapsuleGeometry(.22,1.15,3,8), 0,.8,0); colCyl(g,.04,2.4,.28,1.2,.31); colBox(g,.3,.8,.1,-.34,.82,.22); }
+  return g;
+}
+
+function buildJamu(withCol=true){
+  const { g, R, L } = buildPerson({ shirt:'accent', bottom:'cloth1', hat:'konde' });
+  R.rotation.x = -.25; L.rotation.x = -.25;
+  const bz = -.42;
+  const b = buildBasket(false,false); b.scale.set(.6,.9,.6); b.position.set(0,.72,bz); g.add(b);
+  const keys = ['fYellow','fOrange','fGreen','cloth2','fYellow'];
+  for (let i=0;i<[5,4,2][curLod];i++){
+    const a = i/5*PI*2, x = Math.cos(a)*.12, z = bz + Math.sin(a)*.1;
+    mk(new THREE.CylinderGeometry(.035,.035,.28,S(8,4)), keys[i], g, x,.9,z);
+    if (D(0)) mk(new THREE.CylinderGeometry(.018,.018,.04,5), 'wood', g, x,1.06,z);
+  }
+  rod(g, new V3(.17,1.18,.08), new V3(-.17,.8,-.3), .03, 'cloth2', 4);
+  if (D(1)) rod(g, new V3(-.17,1.18,.08), new V3(-.1,.9,-.32), .02, 'cloth2', 4);
+  if (withCol){ col(g, new THREE.CapsuleGeometry(.22,1.15,3,8), 0,.8,0); colBox(g,.5,.45,.5,0,.9,bz); }
+  return g;
+}
+
+// ======================================================================
+// ENVIRONMENT
+// ======================================================================
+function buildStall(withCol=true){
+  const g = new THREE.Group();
+  for (const sx of [-1,1]) for (const sz of [-1,1]){
+    box(g,'wood',.12,2.25,.12,sx*1.1,1.125,sz*.55);
+    if (D(0)) box(g,'stone',.22,.12,.22,sx*1.1,.06,sz*.55);
+  }
+  box(g,'wood',2.4,.1,1.2,0,.85,0);
+  const ns = [8,4,1][curLod];
+  for (let i=0;i<ns;i++) box(g, i%2?'cloth2':'cloth1', 2.4/ns,.7,.04, -1.2+2.4/ns*(i+.5),.45,.6);
+  if (D(1)) for (const s of [-1,1]) box(g,'woodDark',.04,.7,1.2,s*1.2,.45,0);
+  box(g,'woodDark',2.2,.06,.3,0,1.45,-.42);
+  for (const x of D(1) ? [-.7,-.3,.5] : [0]){ const k = buildKendi(false); k.scale.setScalar(.35); k.position.set(x,1.48,-.42); g.add(k); }
+  const r1 = new THREE.ConeGeometry(1.6*Math.SQRT2,.5,4); r1.rotateY(PI/4);
+  mk(r1, 'roof', g, 0,2.5,0).scale.z = .68;
+  const r2 = new THREE.ConeGeometry(.85*Math.SQRT2,1,4); r2.rotateY(PI/4);
+  mk(r2, 'roof', g, 0,2.98,0).scale.z = .68;
+  if (D(1)) mk(new THREE.ConeGeometry(.07,.25,S(8,4)), 'gold', g, 0,3.55,0);
+  box(g,'accent',1.1,.28,.05,0,2.08,.6);
+  if (D(1)) box(g,'cloth2',.96,.16,.06,0,2.08,.6);
+  for (const x of D(1) ? [-.7,0,.7] : [-.5,.5]){ const b = buildBasket(false); b.scale.setScalar(.62); b.position.set(x,.9,.12); g.add(b); }
+  if (D(1)){ const l = buildLamp(false, false); l.scale.setScalar(.62); l.position.set(.85,1.7,.35); g.add(l); }
+  if (withCol){
+    colBox(g,2.45,.9,1.25,0,.45,0);
+    colBox(g,3.2,1.3,2.2,0,2.88,0);
+    for (const sx of [-1,1]) for (const sz of [-1,1]) colBox(g,.13,1.33,.13,sx*1.1,1.57,sz*.55);
+  }
+  return g;
+}
+
+function buildRumahPanggung(withCol=true){
+  const g = new THREE.Group();
+  for (const x of [-1.4,0,1.4]) for (const z of [-1,0,1]){
+    box(g,'woodDark',.14,1.0,.14,x,.5,z);
+    if (D(0)) box(g,'stone',.26,.1,.26,x,.05,z);
+  }
+  box(g,'wood',3.2,.12,2.4,0,1.06,0);
+  box(g,'wood',3.0,1.5,2.2,0,1.87,0);
+  if (D(0)) for (let i=1;i<6;i++) box(g,'woodDark',3.02,.015,2.22,0,1.12+i*.25,0);
+  for (const x of [-.9,.9]){
+    box(g,'dark',.5,.5,.04,x,1.95,1.11);
+    if (D(1)){ box(g,'cloth2',.6,.06,.06,x,2.23,1.11); box(g,'cloth2',.6,.06,.06,x,1.67,1.11); }
+  }
+  box(g,'woodDark',.6,1.1,.04,0,1.67,1.11);
+  if (D(1)) box(g,'gold',.05,.05,.03,.18,1.65,1.14);
+  for (const z of [-.3,.3]) box(g,'dark',.04,.45,.4,1.51,1.95,z*2.2);
+  // porch + railing
+  box(g,'wood',3.2,.08,.7,0,1.06,1.55);
+  if (D(1)){
+    box(g,'woodDark',3.2,.05,.05,0,1.55,1.88);
+    const n = [12,6][curLod];
+    for (let i=0;i<=n;i++){ const x = -1.6 + i*3.2/n; if (Math.abs(x) > .4) box(g,'woodDark',.04,.45,.04,x,1.32,1.88); }
+  }
+  // stairs
+  for (const s of [-1,1]) rod(g, new V3(s*.35,0,2.95), new V3(s*.35,1.04,1.9), .03, 'woodDark', 4);
+  for (let i=0;i<5;i++) box(g,'wood',.7,.05,.22,0,.2+i*.2,2.75-i*.2);
+  // roof
+  const roof = new THREE.Group(); roof.position.y = 2.62; roof.rotation.y = PI/2; g.add(roof);
+  gable(roof,'roof',2.6,3.0,1.1,0,.35);
+  mk(prism(2.2,.95,2.96), 'woodDark', roof, 0,0,0).rotation.y = 0;
+  if (D(1)) for (const s of [-1,1]){ const c = mk(new THREE.ConeGeometry(.06,.35,5), 'gold', roof, 0,1.25,s*1.85); c.rotation.x = s*.5; }
+  if (withCol){ colBox(g,3.2,1.62,2.4,0,1.86,0); colBox(g,3.4,1.1,3.2,0,3.17,0); colBox(g,.8,1.1,1.1,0,.55,2.45); colBox(g,3.2,1.1,2.4,0,.55,0); }
+  return g;
+}
+
+function buildGapura(withCol=true){
+  const g = new THREE.Group();
+  const gap = .9;
+  let tiers = [[1.4,.35,1.4,'stone'],[1.2,.9,1.2,'clay'],[1.3,.15,1.3,'stone'],[1.0,.6,1.0,'clay'],[1.1,.12,1.1,'stone'],[.8,.5,.8,'clay'],[.9,.1,.9,'stone'],[.6,.4,.6,'clay'],[.45,.3,.45,'stone'],[.3,.25,.3,'clay']];
+  if (curLod === 2) tiers = [[1.4,1.25,1.4,'clay'],[1.1,.87,1.1,'clay'],[.8,1.0,.8,'clay'],[.4,.55,.4,'stone']];
+  let topY = 0;
+  for (const s of [-1,1]){
+    let y = 0;
+    tiers.forEach(([w,h,d,m]) => {
+      box(g,m,w,h,d, s*(gap/2+w/2), y+h/2, 0);
+      if (D(0) && m === 'stone') for (const dz of [-1,1]) mk(new THREE.ConeGeometry(.06,.18,4), 'stone', g, s*(gap/2+w-.06), y+h+.09, dz*(d/2-.06));
+      if (D(1) && m === 'clay' && h > .45) box(g,'stone2',w*.55,h*.55,.03, s*(gap/2+w/2), y+h/2, d/2+.01);
+      y += h;
+    });
+    mk(new THREE.ConeGeometry(.12,.4,S(8,4)), 'stone', g, s*(gap/2+.15), y+.2, 0);
+    topY = y + .4;
+  }
+  box(g,'stone2',gap,.06,1.4,0,.03,0);
+  if (D(1)) for (let i=0;i<3;i++) box(g,'stone',gap+.6-i*.2,.08*(3-i),.3,0,.04*(3-i),.85+i*.3);
+  if (withCol) for (const s of [-1,1]) colBox(g,1.4,topY,1.4,s*(gap/2+.7),topY/2,0);
+  return g;
+}
+
+function buildPosRonda(withCol=true){
+  const g = new THREE.Group();
+  for (const x of [-.9,.9]) for (const z of [-.6,.6]) box(g,'wood',.1,2.0,.1,x,1.0,z);
+  box(g,'woodDark',2.0,.08,1.4,0,.5,0);
+  if (D(0)) for (let i=0;i<7;i++){ const m = mk(new THREE.CylinderGeometry(.04,.04,1.9,6), 'bamboo', g, 0,.57,-.6+i*.2); m.rotation.z = PI/2; }
+  if (D(1)) box(g,'bamboo',1.9,.55,.04,0,1.1,-.62);
+  box(g,'woodDark',2.0,.08,.08,0,1.96,.6);
+  const roof = new THREE.Group(); roof.position.y = 2.0; roof.rotation.y = PI/2; g.add(roof);
+  gable(roof,'roof',1.4,2.0,.6,0,.25);
+  // kentongan
+  rod(g, new V3(.6,1.92,.6), new V3(.6,1.78,.6), .008, 'rope', 3);
+  mk(new THREE.CylinderGeometry(.08,.08,.5,S(10,5)), 'woodDark', g, .6,1.52,.6);
+  if (D(1)) box(g,'dark',.03,.3,.02,.6,1.52,.68);
+  if (D(1)){ rod(g, new V3(.75,1.3,.65), new V3(.8,1.65,.66), .012, 'wood', 4); }
+  if (D(1)){ box(g,'cloth2',.6,.2,.03,-.55,1.65,.66); box(g,'accent',.5,.04,.035,-.55,1.65,.66); }
+  if (withCol){ colBox(g,2.0,.6,1.4,0,.3,0); colBox(g,2.5,.7,1.9,0,2.3,0); for (const x of [-.9,.9]) for (const z of [-.6,.6]) colBox(g,.1,1.4,.1,x,1.3,z); }
+  return g;
+}
+
+function fenceSeg(len=2){
+  const g = new THREE.Group();
+  for (const x of [0,len]){
+    mk(new THREE.CylinderGeometry(.045,.05,1.15,S(8,4)), 'bamboo', g, x,.575,0);
+    if (D(0)) ring(g,'trunk',.05,.008,.8,x);
+  }
+  for (const y of [.35,.85]){ const r = mk(new THREE.CylinderGeometry(.03,.03,len,S(8,4)), 'bamboo', g, len/2,y,.05); r.rotation.z = PI/2; }
+  const n = [10,6,3][curLod];
+  for (let i=1;i<n;i++) mk(new THREE.CylinderGeometry(.022,.022,.95,S(6,3)), 'bamboo', g, i*len/n,.475,.09);
+  return g;
+}
+function buildPagar(withCol=true){
+  const g = new THREE.Group();
+  const put = (x,z,ry) => { const f = fenceSeg(); f.position.set(x,0,z); f.rotation.y = ry; g.add(f); if (withCol) colBox(g,2,1.15,.15,x+Math.cos(ry)*1,.575,z-Math.sin(ry)*1,ry); };
+  put(-3,0,0); put(-1,0,0); put(1,0,0); put(3,0,PI/2);
+  if (D(1)){ const o = buildObor(false,false); o.position.set(-3.2,0,.35); o.scale.setScalar(.8); g.add(o); }
+  return g;
+}
+
+function roadTile(type){
+  const g = new THREE.Group();
+  box(g,'grass',2,.1,2,0,.05,0);
+  const path = (w,d,x,z,lift=0) => { const m = mk(new THREE.BoxGeometry(w,.03,d), texMat('batu'), g, x,.115+lift,z); return m; };
+  if (type==='lurus') path(2,1,0,0);
+  if (type==='belok'){ path(1.5,1,-.25,0); path(1,1.5,0,.25,.001); }
+  if (type==='tiga'){ path(2,1,0,0); path(1,1,0,.75,.001); }
+  if (type==='empat'){ path(2,1,0,0); path(1,2,0,0,.001); }
+  if (D(1)){
+    const curb = (w,d,x,z) => box(g,'cloth2',w,.06,d,x,.13,z);
+    if (type==='lurus'){ curb(2,.06,0,.53); curb(2,.06,0,-.53); }
+    if (type==='belok'){ curb(1.5,.06,-.25,-.53); curb(.06,1.5,.53,.25); curb(.47,.06,-.765,.53); curb(.06,.47,-.53,.765); }
+    if (type==='tiga'){ curb(2,.06,0,-.53); for (const s of [-1,1]){ curb(.47,.06,s*.765,.53); curb(.06,.47,s*.53,.765); } }
+    if (type==='empat') for (const sx of [-1,1]) for (const sz of [-1,1]){ curb(.47,.06,sx*.765,sz*.53); curb(.06,.47,sx*.53,sz*.765); }
+  }
+  if (D(0)) for (let i=0;i<4;i++){ const a = i*1.7; mk(new THREE.IcosahedronGeometry(.08,0), 'leaf', g, Math.cos(a)*.8, .14, Math.sin(a)*.8).scale.y = .6; }
+  return g;
+}
+function buildJalan(withCol=true){
+  const g = new THREE.Group();
+  [['lurus','Lurus'],['belok','Belokan'],['tiga','Pertigaan'],['empat','Perempatan']].forEach(([t,name],i) => {
+    const x = (i-1.5)*2.3, tile = roadTile(t); tile.position.x = x; g.add(tile);
+    const l = label(name,.9); l.position.set(x,.6,0); g.add(l);
+    if (withCol) colBox(g,2,.13,2,x,.065,0);
+  });
+  return g;
+}
+
+function leafGeo(len, width=.34, droop=.5){
+  const geo = new THREE.PlaneGeometry(width, len, 2, S(8,3));
+  const p = geo.attributes.position;
+  for (let i=0;i<p.count;i++){
+    const x = p.getX(i), t = (p.getY(i) + len/2) / len;
+    const xx = x * Math.pow(Math.sin(PI*Math.min(t,.96)), .55);
+    p.setXYZ(i, xx, t*len, t*t*len*droop + Math.abs(xx)*.3);
+  }
+  geo.computeVertexNormals();
+  return geo;
+}
+function buildBanana(withCol=true){
+  const g = new THREE.Group();
+  mk(new THREE.CylinderGeometry(.08,.13,1.4,S(10,5),2), 'trunk', g, 0,.7,0);
+  if (D(0)) for (const y of [.35,.75,1.1]) ring(g,'leafDry',.12-y*.03,.012,y);
+  const n = [8,6,4][curLod];
+  for (let i=0;i<n;i++){
+    const h = new THREE.Group(); h.position.y = 1.32; h.rotation.y = i/n*PI*2 + (i%2)*.3; g.add(h);
+    const dry = D(0) && i === n-1;
+    mk(leafGeo(1.05 + (i%3)*.12), dry ? 'leafDryDS' : 'leafDS', h).rotation.x = dry ? 1.9 : .35 + (i%3)*.28;
+  }
+  if (D(0)) mk(new THREE.ConeGeometry(.04,.5,6), 'leaf', g, 0,1.6,0);
+  if (D(1)){
+    const c = new V3(.24,1.0,.08);
+    rod(g, new V3(.04,1.3,.02), c.clone().add(new V3(0,.08,0)), .018, 'trunk', 5);
+    const rings = D(0) ? 3 : 2, per = D(0) ? 6 : 5;
+    for (let r=0;r<rings;r++) for (let k=0;k<per;k++){
+      const a = k/per*PI*2 + r*.4;
+      mk(new THREE.CylinderGeometry(.016,.022,.12,4), 'fGreen', g, c.x+Math.cos(a)*.06, c.y-r*.07, c.z+Math.sin(a)*.06).rotation.set(Math.sin(a)*.5, 0, -Math.cos(a)*.5);
+    }
+    if (D(0)){ rod(g, c, new V3(.26,.72,.1), .01, 'trunk', 4); mk(new THREE.ConeGeometry(.045,.14,7), 'jantung', g, .26,.66,.1).rotation.x = PI; }
+  }
+  if (withCol) colCyl(g,.13,1.4,0,.7,0);
+  return g;
+}
+
+function buildKelapa(withCol=true){
+  const g = new THREE.Group();
+  const P = t => new V3(.7*t*t, 4*t, .15*t);
+  const n = S(8,4);
+  for (let i=0;i<n;i++){
+    const a = P(i/n), b = P((i+1)/n), r = .15 - .05*(i/n);
+    const m = rod(g, a, b, r, 'trunk', S(8,5));
+    if (D(0)) ring(g,'leafDry',r+.01,.012,a.y, a.x, a.z).quaternion.copy(m.quaternion).multiply(new THREE.Quaternion().setFromAxisAngle(new V3(1,0,0),PI/2));
+  }
+  const top = P(1);
+  const fronds = [12,9,6][curLod];
+  for (let i=0;i<fronds;i++){
+    const h = new THREE.Group(); h.position.copy(top); h.rotation.y = i/fronds*PI*2; g.add(h);
+    mk(leafGeo(1.9, .5, .9), (D(0) && i%5===4) ? 'leafDryDS' : 'leafDS', h).rotation.x = .6 + (i%3)*.25;
+  }
+  for (let i=0;i<[5,4,3][curLod];i++){ const a = i/5*PI*2; mk(new THREE.SphereGeometry(.11,S(8,4),S(6,3)), 'coco', g, top.x+Math.cos(a)*.15, top.y-.15, top.z+Math.sin(a)*.15); }
+  if (withCol) colCyl(g,.18,4,.25,2,0);
+  return g;
+}
+
+function buildBambuClump(withCol=true){
+  const g = new THREE.Group();
+  mk(new THREE.SphereGeometry(.6,S(12,5),S(6,3),0,PI*2,0,PI/2), 'soil', g).scale.y = .25;
+  const n = [10,7,4][curLod], r = rng(42);
+  for (let i=0;i<n;i++){
+    const a = i/n*PI*2 + r(), d = .12 + r()*.3, h = 3 + r()*1.6;
+    const base = new V3(Math.cos(a)*d, .05, Math.sin(a)*d);
+    const tip = new V3(Math.cos(a)*(d+.5+r()*.5), h, Math.sin(a)*(d+.5+r()*.5));
+    rod(g, base, tip, .035 + r()*.015, 'bamboo', S(7,4));
+    if (D(0)) for (let k=1;k<6;k++){ const p = base.clone().lerp(tip, k/6); mk(new THREE.SphereGeometry(.045,5,3), 'trunk', g, p.x,p.y,p.z).scale.y = .3; }
+    if (D(1)) for (let k=0;k<4;k++){
+      const p = base.clone().lerp(tip, .62 + k*.1), lf = new THREE.Group(); lf.position.copy(p); lf.rotation.y = r()*PI*2; g.add(lf);
+      mk(leafGeo(.45,.1,.3), 'leafDS', lf).rotation.x = 1.2;
+    }
+  }
+  if (withCol) colCyl(g,.6,4,0,2,0);
+  return g;
+}
+
+function buildRocks(withCol=true){
+  const g = new THREE.Group();
+  const det = D(0) ? 1 : 0;
+  [[0,0,.55,1],[.75,.2,.35,2],[-.6,.35,.3,3],[.3,-.6,.25,4]].forEach(([x,z,s,seed]) => {
+    const m = mk(lumpy(new THREE.IcosahedronGeometry(s, det), .12, seed), 'stone', g, x, s*.55, z);
+    m.scale.y = .7;
+  });
+  [[-.9,-.5],[1.1,-.4],[-.1,.95]].forEach(([x,z],i) => {
+    for (let k=0;k<(D(1)?3:1);k++) mk(lumpy(new THREE.IcosahedronGeometry(.3-k*.05, det), .1, i+k), 'leaf', g, x+k*.18-.15, .22+k*.08, z+(k%2)*.12);
+    if (D(0)) for (let k=0;k<4;k++) mk(new THREE.SphereGeometry(.03,5,3), 'fRed', g, x-.2+k*.13, .48+(k%2)*.06, z+.15);
+  });
+  if (D(0)) for (let i=0;i<10;i++){ const a = i*2.4; mk(new THREE.ConeGeometry(.025,.18,3), 'grass', g, Math.cos(a)*(.9+i*.03), .09, Math.sin(a)*(.9+i*.03)); }
+  if (withCol){ col(g, new THREE.SphereGeometry(.6,8,6), 0,.35,0); colBox(g,.7,.45,.7,.75,.22,.2); }
+  return g;
+}
+
+// ======================================================================
+// TEXTURE PACK + DEMO
+// ======================================================================
+const TEX = [['kayu','Kayu Planks'],['bata','Bata Merah'],['batik','Batik Kawung'],['anyaman','Anyaman Bambu'],['genteng','Genteng'],['batu','Batu Paving'],['bambu','Bambu'],['kapur','Tembok Kapur'],['tanah','Tanah']];
+function buildTexPack(){
+  const g = new THREE.Group();
+  TEX.forEach(([k,name],i) => {
+    const x = (i%3-1)*1.25, z = (Math.floor(i/3)-1)*1.55;
+    mk(new THREE.SphereGeometry(.38, S(40,10), S(28,8)), texMat(k), g, x,.44,z);
+    mk(new THREE.CylinderGeometry(.24,.3,.06,S(24,8)), 'woodDark', g, x,.03,z);
+    const l = label(name,.72); l.position.set(x,.96,z); g.add(l);
+    col(g, new THREE.SphereGeometry(.38,8,6), x,.44,z);
+  });
+  return g;
+}
+
+function buildDemo(){
+  const g = new THREE.Group();
+  if (D(1)){
+    for (let i=-6;i<6;i++) for (let j=-5;j<5;j++){
+      const path = Math.abs(i+.5) < 1.2 && j >= -1;
+      mk(new THREE.BoxGeometry(.98,.08,.98), path ? texMat('batu') : ((i+j)&1 ? 'stone' : 'stone2'), g, i+.5,-.04,j+.5);
+    }
+  } else box(g,'stone',12,.08,10,0,-.04,0);
+  const place = (obj,x,z,ry=0,s=1) => { obj.position.set(x,0,z); obj.rotation.y = ry; obj.scale.setScalar(s); g.add(obj); return obj; };
+  place(buildStall(), -2.2,-1.6); place(buildStall(), 2.2,-1.6);
+  place(buildGapura(), 0,4.3);
+  place(buildRumahPanggung(), -4.3,-3.5);
+  place(buildPosRonda(), 4.4,-3.9,-.2);
+  place(buildBedug(), 2.0,-3.9,.1,.9);
+  place(buildWarung(), 4.2,-.6,PI/2);
+  for (const s of [-1,1]){ const f = place(fenceSeg(), s*2.05, 4.3, s<0 ? PI : 0); f.position.x = s*1.85; f.rotation.y = s<0 ? PI : 0; const f2 = place(fenceSeg(), s*3.85, 4.3, s<0 ? PI : 0); }
+  place(buildObor(true,true), -2.0,5.0); place(buildObor(true,true), 2.0,5.0);
+  place(buildKelapa(), -5.4,1.6,.3); place(buildKelapa(), 5.4,2.4,2.6,.95);
+  place(buildBanana(), -5.3,4.3,.4); place(buildBanana(), 5.4,4.4,1.3,.9);
+  place(buildBambuClump(), 5.4,-1.9,0,.8);
+  place(buildRocks(), -5.3,-.6,0,.6); place(buildRocks(), 1.0,-4.6,1,.5);
+  place(buildBecak(), 2.6,2.6,2.4);
+  place(buildCart(), -3.4,2.6,.7);
+  place(buildMerchant(), -.9,.3,.5);
+  place(buildFarmer(), -2.0,3.4,.9);
+  place(buildWarrior(), 1.2,4.0,-.2);
+  place(buildJamu(), 1.1,1.0,-.6);
+  place(buildTampah(), .6,2.0,0,.8);
+  place(buildLesung(), -3.8,.4,.4,.8);
+  place(buildGentong(), -2.6,-.1,0,.9);
+  place(buildSack(), -.6,-.6,.3,.85); place(buildSack(), -.15,-.4,-.5,.8);
+  place(buildBasket(), -1.8,1.3,0,.75);
+  place(buildKendi(), .55,-.3,0,.5); place(buildKendi(), .85,-.1,1,.42);
+  place(buildLamp(true,false), 3.6,-.6,0,.7);
+  return g;
+}
+
+// ======================================================================
+// catalogue
+// ======================================================================
+const ASSETS = {
+  // Environment Kit
+  lapak:     { g:'env', ico:'🏠', id:'SM_AFS_LapakJoglo',    name:'Lapak Pasar Joglo', cat:'Bangunan · Modular', build:buildStall,
+               desc:'Lapak pedagang dengan atap bertingkat khas joglo. Tiang, meja, dan rak bisa dipisah sebagai modul snap-to-grid.' },
+  panggung:  { g:'env', ico:'🛖', id:'SM_AFS_RumahPanggung', name:'Rumah Panggung', cat:'Bangunan', build:buildRumahPanggung,
+               desc:'Rumah kayu berkolong dengan teras, pagar, tangga, dan atap pelana. Jendela dan pintu terpisah untuk interaksi.' },
+  gapura:    { g:'env', ico:'⛩️', id:'SM_AFS_CandiBentar',   name:'Gapura Candi Bentar', cat:'Bangunan · Landmark', build:buildGapura,
+               desc:'Gerbang terbelah khas Bali dan Majapahit dengan tingkatan bata dan batu, cocok jadi pintu masuk level.' },
+  posronda:  { g:'env', ico:'🔔', id:'SM_AFS_PosRonda',      name:'Pos Ronda', cat:'Bangunan', build:buildPosRonda,
+               desc:'Gardu jaga dengan bale bambu, atap pelana, dan kentongan yang bisa dianimasikan.' },
+  pagar:     { g:'env', ico:'🎋', id:'SM_AFS_PagarBambu',    name:'Pagar Bambu Modular', cat:'Modular · Snap 2 m', build:buildPagar,
+               desc:'Segmen pagar 2 meter yang saling menyambung di grid, termasuk sambungan sudut.' },
+  jalan:     { g:'env', ico:'🛣️', id:'SM_AFS_JalanBatu',     name:'Jalan Modular', cat:'Jalan · Tile 2×2 m', build:buildJalan,
+               desc:'Empat tile jalan batu: lurus, belokan, pertigaan, dan perempatan. Semua pas di grid 2 meter.' },
+  pisang:    { g:'env', ico:'🍌', id:'SM_AFS_PohonPisang',   name:'Pohon Pisang', cat:'Vegetasi', build:buildBanana,
+               desc:'Vegetasi tropis dengan daun double-sided, tandan buah, dan jantung pisang.' },
+  kelapa:    { g:'env', ico:'🌴', id:'SM_AFS_PohonKelapa',   name:'Pohon Kelapa', cat:'Vegetasi', build:buildKelapa,
+               desc:'Batang melengkung bersegmen dengan pelepah menjuntai dan buah kelapa.' },
+  bambu:     { g:'env', ico:'🎍', id:'SM_AFS_RumpunBambu',   name:'Rumpun Bambu', cat:'Vegetasi', build:buildBambuClump,
+               desc:'Rumpun batang bambu beruas dengan daun kecil. Bisa disebar acak untuk tepi level.' },
+  batu:      { g:'env', ico:'🪨', id:'SM_AFS_BatuSemak',     name:'Batu & Semak', cat:'Vegetasi · Scatter', build:buildRocks,
+               desc:'Set batu organik, semak berbunga, dan rumput untuk mengisi sela level.' },
+  demo:      { g:'env', ico:'🎬', id:'MAP_AFS_DesaPasar',    name:'Demo Scene: Desa Pasar', cat:'Demo Scene', build:buildDemo,
+               desc:'Hampir semua aset disusun jadi satu desa pasar di atas grid 1×1 m, seperti demo scene yang ikut di setiap paket.' },
+  // Karakter
+  pedagang:  { g:'char', ico:'🧑‍🌾', id:'SK_AFS_Pedagang', name:'Pedagang Pikulan', cat:'Karakter', build:buildMerchant,
+               desc:'Pedagang bercaping dan bersarung yang membawa pikulan dua keranjang.' },
+  petani:    { g:'char', ico:'👨‍🌾', id:'SK_AFS_Petani',   name:'Petani', cat:'Karakter', build:buildFarmer,
+               desc:'Petani bercelana panjang yang memanggul cangkul, lengkap dengan bakul.' },
+  prajurit:  { g:'char', ico:'🛡️', id:'SK_AFS_Prajurit',  name:'Prajurit Kerajaan', cat:'Karakter', build:buildWarrior,
+               desc:'Prajurit berikat kepala yang membawa tombak dan tameng, siap jadi NPC penjaga.' },
+  jamu:      { g:'char', ico:'🧺', id:'SK_AFS_PenjualJamu', name:'Penjual Jamu Gendong', cat:'Karakter', build:buildJamu,
+               desc:'Penjual jamu berkonde yang menggendong bakul berisi botol jamu warna-warni.' },
+  // Senjata
+  keris:     { g:'weapon', ico:'🗡️', id:'SM_AFS_KerisLuk7', name:'Keris Luk 7', cat:'Senjata', build:buildKeris,
+               desc:'Keris berbilah 7 luk dengan hulu, selut, ganja, dan warangka di atas dudukan pajangan.' },
+  tombak:    { g:'weapon', ico:'🔱', id:'SM_AFS_Tombak',   name:'Tombak', cat:'Senjata', build:buildTombak,
+               desc:'Tombak bergagang kayu dengan rumbai merah dan cincin emas.' },
+  golok:     { g:'weapon', ico:'🔪', id:'SM_AFS_Golok',    name:'Golok', cat:'Senjata', build:buildGolok,
+               desc:'Golok berbilah lebar dengan gagang kayu dan sarungnya.' },
+  tameng:    { g:'weapon', ico:'🛡️', id:'SM_AFS_TamengDayak', name:'Tameng Dayak', cat:'Senjata · Pertahanan', build:buildTameng,
+               desc:'Tameng panjang bermotif khas Dayak dengan pola segitiga dan mata di tengah.' },
+  // Kendaraan
+  gerobak:   { g:'vehicle', ico:'🛒', id:'SM_AFS_Gerobak', name:'Gerobak Kayu', cat:'Kendaraan', build:buildCart,
+               desc:'Gerobak dorong dua roda lengkap dengan muatan. Roda terpisah untuk animasi.' },
+  becak:     { g:'vehicle', ico:'🚲', id:'SM_AFS_Becak',   name:'Becak', cat:'Kendaraan', build:buildBecak,
+               desc:'Becak roda tiga dengan kap kain, kursi penumpang, dan rangka sepeda. Tiga roda terpisah.' },
+  jukung:    { g:'vehicle', ico:'⛵', id:'SM_AFS_Jukung',  name:'Perahu Jukung', cat:'Kendaraan · Air', build:buildJukung,
+               desc:'Perahu bercadik khas Bali dengan layar segitiga dan dayung.' },
+  // Props
+  keranjang: { g:'props', ico:'🧺', id:'SM_AFS_Keranjang', name:'Keranjang Anyaman', cat:'Props', build:buildBasket,
+               desc:'Keranjang bambu anyaman berisi buah. Jumlah buah ikut berkurang di LOD rendah.' },
+  kendi:     { g:'props', ico:'🏺', id:'SM_AFS_Kendi',     name:'Kendi Tanah Liat', cat:'Props', build:buildKendi,
+               desc:'Kendi gerabah dengan cerat dan pita dekoratif.' },
+  gentong:   { g:'props', ico:'🫙', id:'SM_AFS_Gentong',   name:'Gentong & Gayung', cat:'Props', build:buildGentong,
+               desc:'Gentong air tanah liat dengan tutup kayu dan gayung batok kelapa.' },
+  petromaks: { g:'props', ico:'🏮', id:'SM_AFS_Petromaks', name:'Lampu Petromaks', cat:'Props · Lighting', build:buildLamp,
+               desc:'Lampu petromaks dengan kaca emissive dan titik cahaya bawaan.' },
+  obor:      { g:'props', ico:'🔥', id:'SM_AFS_OborBambu', name:'Obor Bambu', cat:'Props · Lighting', build:buildObor,
+               desc:'Obor bambu dengan api beranimasi dan point light bawaan.' },
+  karung:    { g:'props', ico:'🌾', id:'SM_AFS_KarungBeras', name:'Karung Beras', cat:'Props', build:buildSack,
+               desc:'Karung goni dengan bentuk organik dan label. Bisa ditumpuk.' },
+  lesung:    { g:'props', ico:'🪵', id:'SM_AFS_LesungAlu', name:'Lesung & Alu', cat:'Props', build:buildLesung,
+               desc:'Lesung kayu panjang dengan dua lubang berisi padi dan sepasang alu.' },
+  tampah:    { g:'props', ico:'🥕', id:'SM_AFS_TampahSayur', name:'Tampah Sayur', cat:'Props', build:buildTampah,
+               desc:'Tampah anyaman di atas bangku, berisi tomat, wortel, terong, dan kol.' },
+  warung:    { g:'props', ico:'☕', id:'SM_AFS_WarungKopi', name:'Meja & Lincak', cat:'Props · Furnitur', build:buildWarung,
+               desc:'Meja warung dan dua bangku lincak bambu, lengkap dengan teko, gelas, dan gorengan.' },
+  gong:      { g:'props', ico:'🥁', id:'SM_AFS_Gong',      name:'Gong Gamelan', cat:'Props · Musik', build:buildGong,
+               desc:'Gong perunggu tergantung di rancakan kayu berukir, lengkap dengan pemukulnya.' },
+  bedug:     { g:'props', ico:'🪘', id:'SM_AFS_Bedug',     name:'Bedug', cat:'Props · Musik', build:buildBedug,
+               desc:'Bedug besar di atas penyangga kayu, dengan pasak kulit dan pemukul.' },
+  angklung:  { g:'props', ico:'🎶', id:'SM_AFS_Angklung',  name:'Angklung (Set 3)', cat:'Props · Musik', build:buildAngklung,
+               desc:'Tiga angklung bambu dengan ukuran berbeda.' },
+  // Texture Pack
+  tekstur:   { g:'tex', ico:'🎨', id:'T_AFS_NusantaraPBR', name:'Material Nusantara', cat:'Texture Pack · PBR', build:buildTexPack,
+               desc:'9 material siap pakai: kayu, bata, batik kawung, anyaman, genteng, paving, bambu, tembok kapur, dan tanah.' },
+};
+const GROUPS = [['env','Environment Kit'],['char','Karakter'],['weapon','Senjata'],['vehicle','Kendaraan'],['props','Props'],['tex','Texture Pack']];
+const KEYS = GROUPS.flatMap(([gk]) => Object.keys(ASSETS).filter(k => ASSETS[k].g === gk));
+
+// ======================================================================
+// renderer / scene
+// ======================================================================
+const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true });
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+document.body.prepend(renderer.domElement);
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(38, innerWidth/innerHeight, .02, 300);
+camera.position.set(5,3,6);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true; controls.minDistance = .2; controls.maxDistance = 60; controls.maxPolarAngle = PI*.49;
+
+scene.add(new THREE.HemisphereLight(0xfff1dc, 0x3a2455, 1.3));
+const sun = new THREE.DirectionalLight(0xffe2b8, 2.4);
+sun.castShadow = true; sun.shadow.mapSize.set(2048,2048);
+sun.shadow.bias = -.0005; sun.shadow.normalBias = .02;
+scene.add(sun, sun.target);
+const rim = new THREE.DirectionalLight(0xc6a3ff, 1.0); rim.position.set(-5,3,-4); scene.add(rim);
+
+const shadowPlane = new THREE.Mesh(new THREE.PlaneGeometry(120,120), new THREE.ShadowMaterial({ opacity:.3 }));
+shadowPlane.rotation.x = -PI/2; shadowPlane.position.y = -.1; shadowPlane.receiveShadow = true; scene.add(shadowPlane);
+const pedestal = new THREE.Mesh(new THREE.CylinderGeometry(1,1.04,.1,64), new THREE.MeshStandardMaterial({ color:0x3b2160, roughness:.9 }));
+pedestal.position.y = -.05; pedestal.receiveShadow = true; scene.add(pedestal);
+const pedRing = new THREE.Mesh(new THREE.TorusGeometry(1.04,.012,4,96), new THREE.MeshBasicMaterial({ color:0xfbb01c }));
+pedRing.rotation.x = PI/2; pedestal.add(pedRing);
+
+// ======================================================================
+// build / swap
+// ======================================================================
+let asset = null, lodTris = [0,0,0], flames = [];
+
+function countTris(g){
+  let t = 0;
+  g.traverse(o => { if (o.isMesh && !o.userData.collider){ const geo=o.geometry; t += (geo.index ? geo.index.count : geo.attributes.position.count)/3; } });
+  return Math.round(t);
+}
+function disposeTree(g){
+  g.traverse(o => {
+    if (o.isSprite){ o.material.map.dispose(); o.material.dispose(); }
+    else if (o.geometry) o.geometry.dispose();
+  });
+}
+function make(key, lod, decorate=true){
+  curLod = lod;
+  const g = ASSETS[key].build();
+  if (!decorate) return g;
+  const meshes = [];
+  g.traverse(o => { if (o.isMesh && !o.userData.collider) meshes.push(o); });
+  for (const m of meshes){
+    m.castShadow = !m.userData.noShadow; m.receiveShadow = true;
+    m.userData.orig = m.material;
+    const l = new THREE.LineSegments(new THREE.WireframeGeometry(m.geometry), wireMat);
+    l.userData.wire = true; l.visible = false; m.add(l);
+  }
+  return g;
+}
+function applyView(){
+  if (!asset) return;
+  asset.traverse(o => {
+    if (o.userData.collider) o.visible = state.collision;
+    else if (o.userData.wire) o.visible = state.mode === 'wire';
+    else if (o.isMesh && o.userData.orig) o.material = state.mode === 'clay' ? clayMat : o.userData.orig;
+  });
+}
+function rebuild(reframe){
+  const rot = asset ? asset.rotation.y : 0;
+  if (asset){ scene.remove(asset); disposeTree(asset); }
+  asset = make(state.asset, state.lod);
+  asset.rotation.y = reframe ? 0 : rot;
+  scene.add(asset);
+  flames = []; asset.traverse(o => { if (o.userData.flame) flames.push(o); });
+  applyView();
+  if (reframe) frame();
+  updateStats();
+}
+
+let tween = null;
+function frame(){
+  const b = new THREE.Box3().setFromObject(asset);
+  const c = b.getCenter(new V3()), s = b.getSize(new V3());
+  const isDemo = state.asset === 'demo';
+  pedestal.visible = !isDemo;
+  const R = Math.max(s.x, s.z) * .78;
+  pedestal.scale.set(R,1,R);
+  // shadow camera follows asset size
+  const ext = Math.max(s.x, s.y, s.z) * .85 + .5;
+  Object.assign(sun.shadow.camera, { left:-ext, right:ext, top:ext, bottom:-ext, near:.1, far:ext*6 });
+  sun.shadow.camera.updateProjectionMatrix();
+  sun.position.copy(c).add(new V3(4,7,3).normalize().multiplyScalar(ext*2.5));
+  sun.target.position.copy(c);
+  let dist = (s.length()/2) / Math.sin(THREE.MathUtils.degToRad(camera.fov/2)) * (isDemo ? .72 : .95);
+  if (camera.aspect < 1) dist /= Math.max(.55, camera.aspect);
+  const to = c.clone().addScaledVector(new V3(1,.62,1.3).normalize(), dist);
+  tween = { fp:camera.position.clone(), tp:to, ft:controls.target.clone(), tt:c, t:0 };
+}
+controls.addEventListener('start', () => { tween = null; });
+
+// ======================================================================
+// UI
+// ======================================================================
+const $ = id => document.getElementById(id);
+$('count').textContent = `${KEYS.length} aset · Nusantara Kit`;
+
+function updateStats(){
+  const a = ASSETS[state.asset];
+  $('sName').textContent = a.name; $('sCat').textContent = a.cat; $('sDesc').textContent = a.desc;
+  $('sId').textContent = `${a.id}_LOD${state.lod}`;
+  $('tName').textContent = a.name;
+  $('tSub').innerHTML = `${GROUPS.find(g => g[0]===a.g)[1]} · ${a.cat} · <em>${KEYS.indexOf(state.asset)+1}/${KEYS.length}</em>`;
+  let meshes=0, cols=0; const mats = new Set();
+  asset.traverse(o => {
+    if (!o.isMesh) return;
+    if (o.userData.collider) cols++; else { meshes++; mats.add(o.userData.orig); }
+  });
+  $('sTri').textContent = countTris(asset).toLocaleString('id-ID');
+  $('sMesh').textContent = meshes; $('sMat').textContent = mats.size; $('sCol').textContent = cols;
+  const max = lodTris[0] || 1;
+  $('sLod').innerHTML = lodTris.map((t,i) =>
+    `<div class="lodrow ${i===state.lod?'on':''}"><span>LOD${i}</span><div class="bar"><i style="width:${t/max*100}%"></i></div><em>${t.toLocaleString('id-ID')}</em></div>`).join('');
+}
+function computeLodTris(){
+  lodTris = [0,1,2].map(l => { const g = make(state.asset, l, false); const t = countTris(g); disposeTree(g); return t; });
+}
+
+// catalogue list + category chips
+const listEl = $('list'), chipsEl = $('chips');
+function renderChips(){
+  chipsEl.innerHTML = '';
+  for (const [k,name] of [['all','Semua'], ...GROUPS]){
+    const b = document.createElement('button'); b.textContent = name; b.classList.toggle('on', state.filter === k);
+    b.onclick = () => { state.filter = k; renderChips(); renderList(); };
+    chipsEl.appendChild(b);
+  }
+}
+function visibleKeys(){ return state.filter === 'all' ? KEYS : KEYS.filter(k => ASSETS[k].g === state.filter); }
+function renderList(){
+  listEl.innerHTML = '';
+  for (const [gk,gname] of GROUPS){
+    if (state.filter !== 'all' && state.filter !== gk) continue;
+    const h = document.createElement('h2'); h.textContent = gname; listEl.appendChild(h);
+    for (const k of KEYS.filter(k => ASSETS[k].g === gk)){
+      const a = ASSETS[k], b = document.createElement('button');
+      b.dataset.k = k; b.classList.toggle('on', k === state.asset);
+      b.innerHTML = `<span class="ico">${a.ico}</span><span>${a.name}<span class="c">${a.cat}</span></span>`;
+      b.onclick = () => selectAsset(k);
+      listEl.appendChild(b);
+    }
+  }
+}
+function selectAsset(k){
+  state.asset = k;
+  listEl.querySelectorAll('button').forEach(b => {
+    const on = b.dataset.k === k; b.classList.toggle('on', on);
+    if (on) b.scrollIntoView({ block:'nearest', inline:'nearest' });
+  });
+  computeLodTris(); rebuild(true);
+}
+function step(dir){
+  const keys = visibleKeys(), i = keys.indexOf(state.asset);
+  selectAsset(keys[(i + dir + keys.length) % keys.length]);
+}
+
+function seg(el, items, key, after){
+  el.innerHTML = '';
+  for (const [v,lab] of items){
+    const b = document.createElement('button'); b.textContent = lab; b.dataset.v = v;
+    b.onclick = () => setSeg(el, key, v, after);
+    el.appendChild(b);
+  }
+  sync(el, key);
+}
+function sync(el, key){ el.querySelectorAll('button').forEach(b => b.classList.toggle('on', String(state[key]) === b.dataset.v)); }
+function setSeg(el, key, v, after){ state[key] = key==='lod' ? +v : v; sync(el, key); after(); }
+
+seg($('mode'), [['shaded','Shaded'],['wire','Wireframe'],['clay','Clay']], 'mode', applyView);
+seg($('lod'),  [['0','LOD0'],['1','LOD1'],['2','LOD2']], 'lod', () => rebuild(false));
+
+const varEl = $('variants');
+for (const [k,v] of Object.entries(VARIANTS)){
+  const b = document.createElement('button'); b.dataset.v = k;
+  b.innerHTML = `<div class="sw" style="background:linear-gradient(90deg,${hex(v.wood)} 0 34%,${hex(v.roof)} 34% 67%,${hex(v.cloth1)} 67%)"></div>${v.name}`;
+  b.onclick = () => { state.variant = k; sync(varEl,'variant'); rebuild(false); };
+  varEl.appendChild(b);
+}
+sync(varEl,'variant');
+
+function toggle(id, key, after){
+  const el = $(id);
+  const set = v => { state[key] = v; el.classList.toggle('on', v); after && after(); };
+  el.onclick = () => set(!state[key]);
+  return set;
+}
+const setCol  = toggle('tCol','collision', applyView);
+const setTurn = toggle('tTurn','turntable');
+
+$('shot').onclick = () => {
+  renderer.render(scene, camera);
+  const a = document.createElement('a');
+  a.href = renderer.domElement.toDataURL('image/png');
+  a.download = `${ASSETS[state.asset].id}_${state.variant}_LOD${state.lod}.png`;
+  a.click();
+};
+
+// presentation: prev/next, auto-tour, fullscreen
+const TOUR_MS = 7000;
+let tourT = 0;
+function setTour(v){
+  state.tour = v; tourT = 0;
+  $('tour').classList.toggle('on', v); $('tour').textContent = v ? '❚❚ Auto-tour' : '▶ Auto-tour';
+  if (v) setTurn(true);
+  $('tourbar').style.width = '0';
+}
+$('prev').onclick = () => { tourT = 0; step(-1); };
+$('next').onclick = () => { tourT = 0; step(1); };
+$('tour').onclick = () => setTour(!state.tour);
+function toggleFull(){ document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen?.(); }
+$('full').onclick = toggleFull;
+
+addEventListener('keydown', e => {
+  const k = e.key.toLowerCase();
+  if (['1','2','3'].includes(k)) setSeg($('lod'),'lod',+k-1,() => rebuild(false));
+  else if (k === 'arrowright'){ tourT = 0; step(1); }
+  else if (k === 'arrowleft'){ tourT = 0; step(-1); }
+  else if (k === 'w') setSeg($('mode'),'mode', state.mode==='wire'?'shaded':'wire', applyView);
+  else if (k === 'c') setCol(!state.collision);
+  else if (k === 't') setTurn(!state.turntable);
+  else if (k === 'p') setTour(!state.tour);
+  else if (k === 'f') toggleFull();
+});
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight; camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+// ======================================================================
+// loop
+// ======================================================================
+const clock = new THREE.Clock();
+const ease = t => 1 - Math.pow(1-t, 3);
+renderer.setAnimationLoop(() => {
+  const dt = Math.min(clock.getDelta(), .05), now = clock.elapsedTime;
+  if (tween){
+    tween.t = Math.min(1, tween.t + dt/0.8);
+    const k = ease(tween.t);
+    camera.position.lerpVectors(tween.fp, tween.tp, k);
+    controls.target.lerpVectors(tween.ft, tween.tt, k);
+    if (tween.t >= 1) tween = null;
+  }
+  if (state.turntable && asset) asset.rotation.y += dt * .35;
+  flames.forEach((f,i) => { f.scale.set(1 + .08*Math.sin(now*17+i), 1 + .18*Math.sin(now*11+i*2), 1 + .08*Math.cos(now*15+i)); });
+  if (state.tour){
+    tourT += dt*1000;
+    $('tourbar').style.width = Math.min(100, tourT/TOUR_MS*100) + '%';
+    if (tourT >= TOUR_MS){ tourT = 0; step(1); }
+  }
+  controls.update();
+  renderer.render(scene, camera);
+});
+
+renderChips(); renderList();
+selectAsset('lapak');
+camera.position.copy(tween.tp); controls.target.copy(tween.tt); tween = null;
+</script>
+</body>
+</html>
